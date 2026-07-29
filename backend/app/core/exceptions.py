@@ -18,7 +18,7 @@ class ConflictError(DomainError):
     pass
 
 
-class BettingClosedError(DomainError):
+class CapacityClosedError(DomainError):
     pass
 
 

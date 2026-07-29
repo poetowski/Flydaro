@@ -1,8 +1,8 @@
 import { createBrowserRouter } from "react-router-dom";
 import { RequireAuth } from "./auth/RequireAuth";
 import { AppLayout } from "./components/AppLayout";
-import { BetHistoryPage } from "./routes/BetHistoryPage";
-import { BetPlacementPage } from "./routes/BetPlacementPage";
+import { RentalHistoryPage } from "./routes/RentalHistoryPage";
+import { RentalPlacementPage } from "./routes/RentalPlacementPage";
 import { DashboardPage } from "./routes/DashboardPage";
 import { FlightBoardPage } from "./routes/FlightBoardPage";
 import { LicensesPage } from "./routes/LicensesPage";
@@ -20,8 +20,8 @@ export const router = createBrowserRouter([
         children: [
           { path: "/", element: <DashboardPage /> },
           { path: "/flights", element: <FlightBoardPage /> },
-          { path: "/flights/:flightId/bet", element: <BetPlacementPage /> },
-          { path: "/bets", element: <BetHistoryPage /> },
+          { path: "/flights/:flightId/rent", element: <RentalPlacementPage /> },
+          { path: "/rentals", element: <RentalHistoryPage /> },
           { path: "/licenses", element: <LicensesPage /> },
         ],
       },

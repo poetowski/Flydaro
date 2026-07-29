@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.airport import Airport
 from app.models.flight import TrackedFlightStatus
-from app.services import bet_service
+from app.services import rental_service
 from app.worker import resolver, thresholds, tracker
 from app.worker.opensky_client import OpenSkyClient
 
@@ -35,18 +35,18 @@ async def _process_airport(db: AsyncSession, client: OpenSkyClient, airport: Air
 
         if (
             flight.status == TrackedFlightStatus.AIRBORNE_OPEN
-            and tracker.minutes_since(flight.first_seen_at, now) >= thresholds.BETTING_WINDOW_MINUTES
+            and tracker.minutes_since(flight.first_seen_at, now) >= thresholds.CAPACITY_WINDOW_MINUTES
         ):
-            await bet_service.lock_betting(db, flight)
+            await rental_service.lock_capacity(db, flight)
 
         elif flight.status == TrackedFlightStatus.AIRBORNE_LOCKED and tracker.looks_like_landing(state):
-            await bet_service.mark_landing_suspected(db, flight, now)
+            await rental_service.mark_landing_suspected(db, flight, now)
 
         elif flight.status == TrackedFlightStatus.LANDING_SUSPECTED and not tracker.looks_like_landing(
             state
         ):
             # Re-accelerated/climbing again: touch-and-go or go-around, not a real landing.
-            await bet_service.rollback_landing_suspected(db, flight)
+            await rental_service.rollback_landing_suspected(db, flight)
 
 
 async def run_tick(db: AsyncSession, client: OpenSkyClient) -> None:

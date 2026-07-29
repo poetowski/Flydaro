@@ -85,7 +85,7 @@ async def create_tracked_flight(
         last_seen_vertical_rate=state.vertical_rate,
         last_seen_on_ground=state.on_ground,
         status=TrackedFlightStatus.AIRBORNE_OPEN,
-        bets_open=True,
+        capacity_open=True,
     )
     db.add(flight)
     await db.flush()

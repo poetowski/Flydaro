@@ -7,7 +7,7 @@ export interface TrackedFlight {
   origin_airport_id: number;
   aircraft_type_id: number | null;
   status: string;
-  bets_open: boolean;
+  capacity_open: boolean;
   first_seen_at: string;
   last_seen_at: string;
   last_seen_lat: number | null;

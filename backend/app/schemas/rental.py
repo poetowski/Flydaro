@@ -3,22 +3,22 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class PlaceBetRequest(BaseModel):
+class CreateRentalRequest(BaseModel):
     tracked_flight_id: int
-    cargo_type_id: int
-    stake_credits: int = Field(gt=0)
+    item_type_id: int
+    rental_fee_credits: int = Field(gt=0)
 
 
-class BetOut(BaseModel):
+class RentalOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     tracked_flight_id: int
-    cargo_type_id: int
-    stake_credits: int
+    item_type_id: int
+    rental_fee_credits: int
     status: str
-    placed_at: datetime
+    rented_at: datetime
     resolved_at: datetime | None
-    payout_credits: int | None
-    payout_breakdown: dict | None
+    settlement_credits: int | None
+    settlement_breakdown: dict | None
     resolution_reason: str | None

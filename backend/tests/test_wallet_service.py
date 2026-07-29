@@ -12,14 +12,14 @@ async def test_credit_increases_balance(db, user):
 
 async def test_debit_decreases_balance(db, user):
     await apply_ledger_entry(db, user.id, 2000, LedgerReason.SIGNUP_BONUS)
-    await apply_ledger_entry(db, user.id, -500, LedgerReason.BET_STAKE)
+    await apply_ledger_entry(db, user.id, -500, LedgerReason.RENTAL_FEE)
     assert await get_balance(db, user.id) == 1500
 
 
 async def test_debit_below_zero_raises_and_does_not_apply(db, user):
     await apply_ledger_entry(db, user.id, 100, LedgerReason.SIGNUP_BONUS)
     with pytest.raises(InsufficientFundsError):
-        await apply_ledger_entry(db, user.id, -101, LedgerReason.BET_STAKE)
+        await apply_ledger_entry(db, user.id, -101, LedgerReason.RENTAL_FEE)
     # balance must be unchanged after the rejected debit
     assert await get_balance(db, user.id) == 100
 

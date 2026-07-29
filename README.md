@@ -1,16 +1,17 @@
 # Flydaro
 
-A game about betting on real flights. Players spend in-game credits to buy
-themed cargo (pineapples, fragile goods, a VIP passenger...) and bet on a
-real aircraft that has just taken off, sourced live from the
-[OpenSky Network](https://opensky-network.org). The bet resolves based on
-what actually happens to that flight (does it land cleanly, how long does it
-take), and pays out in credits.
+A game about renting capacity on real flights. Players spend in-game credits
+to rent a small portion of a real aircraft's shared capacity -- to transport
+an item (Cargo or Passenger, e.g. pineapples, fragile goods, a VIP
+passenger...) -- on a real aircraft that has just taken off, sourced live
+from the [OpenSky Network](https://opensky-network.org). The rental settles
+based on what actually happens to that flight (does it land cleanly, how
+long does it take), and pays out in credits.
 
 Phase 1 (this repo, right now): auth, 5 fixed starter airports, live
-takeoff/landing detection, a basic bet-and-resolve loop, and a working React
-UI. See the roadmap at the bottom for what's next (licensing/unlocks,
-aircraft types, richer cargo economy, delay/diversion detection).
+takeoff/landing detection, a basic rental-and-settle loop, and a working
+React UI. See the roadmap at the bottom for what's next (licensing/unlocks,
+aircraft types, richer item economy, delay/diversion detection).
 
 ## Architecture
 
@@ -27,7 +28,7 @@ on OpenSky's free tier -- polling is centralized and shared, not per-request.
 - `backend/app/` -- FastAPI app (routers, services, models)
 - `backend/app/worker/` -- the OpenSky poller (separate process from the API)
 - `backend/alembic/` -- DB migrations, including seed data for starter
-  airports and cargo types
+  airports and item types
 - `frontend/` -- React (Vite) SPA
 
 ## Prerequisites
@@ -37,7 +38,7 @@ on OpenSky's free tier -- polling is centralized and shared, not per-request.
 - Docker (for local Postgres) -- or any local Postgres 16 instance
 - An [OpenSky Network](https://opensky-network.org/my-opensky) OAuth2 client
   (client ID + secret) if you want the worker to fetch real flights. Without
-  it, everything else (auth, wallet, bet placement/resolution logic) still
+  it, everything else (auth, wallet, rental placement/resolution logic) still
   works -- the flight board will just stay empty since nothing populates it.
 
 ## Local setup
@@ -60,7 +61,7 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 cp .env.example .env   # adjust JWT_SECRET, OpenSky creds, etc.
 
-alembic upgrade head    # creates schema + seeds starter airports/cargo types
+alembic upgrade head    # creates schema + seeds starter airports/item types
 
 uvicorn app.main:app --reload --port 8000
 ```
@@ -77,7 +78,7 @@ python -m app.worker.main
 
 Runs forever, polling each active airport's bounding box on an interval
 (`POLLER_INTERVAL_SECONDS`, default 45s) and writing tracked flights, state
-samples, and bet resolutions to Postgres.
+samples, and rental settlements to Postgres.
 
 ### 4. Frontend
 
@@ -100,8 +101,8 @@ pytest
 ```
 
 Backend tests run against an in-memory SQLite database (no live OpenSky or
-Postgres needed) and cover the wallet ledger, bet lifecycle/payout formula,
-takeoff/landing detection thresholds, and the resolver's
+Postgres needed) and cover the wallet ledger, rental lifecycle/settlement
+formula, takeoff/landing detection thresholds, and the resolver's
 timeout/lost-signal/landing-confirmation sweeps.
 
 ## Deployment (Neon + Render)
@@ -121,9 +122,10 @@ timeout/lost-signal/landing-confirmation sweeps.
   with credits/achievements.
 - **Aircraft types**: join tracked flights against OpenSky's static aircraft
   metadata database for a plane-type unlock mechanic.
-- **Cargo variety & economy tuning**: more cargo types, differentiated risk
-  profiles per resolution reason, win-streak bonuses, tunable config instead
-  of hardcoded constants.
+- **Item variety & economy tuning**: real Cargo/Passenger item roster (the
+  3 items seeded today are placeholders recategorized from the original
+  single-list model), differentiated risk profiles per resolution reason,
+  win-streak bonuses, tunable config instead of hardcoded constants.
 - **Richer resolution**: delay/diversion detection using OpenSky's historical
   batch data to build expected-duration baselines.
 - **Admin/ops tooling**: poller health dashboard, manual force-resolve for

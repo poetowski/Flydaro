@@ -2,39 +2,39 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import (
-    BettingClosedError,
+    CapacityClosedError,
     InsufficientFundsError,
     LicenseRequiredError,
     NotFoundError,
 )
 from app.core.security import get_current_user
 from app.db.session import get_db
-from app.models.bet import Bet, BetStatus
+from app.models.rental import Rental, RentalStatus
 from app.models.user import User
-from app.schemas.bet import BetOut, PlaceBetRequest
-from app.services import bet_service
+from app.schemas.rental import CreateRentalRequest, RentalOut
+from app.services import rental_service
 
-router = APIRouter(prefix="/bets", tags=["bets"])
+router = APIRouter(prefix="/rentals", tags=["rentals"])
 
 
-@router.post("", response_model=BetOut, status_code=status.HTTP_201_CREATED)
-async def place_bet(
-    body: PlaceBetRequest,
+@router.post("", response_model=RentalOut, status_code=status.HTTP_201_CREATED)
+async def create_rental(
+    body: CreateRentalRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> Bet:
+) -> Rental:
     try:
-        bet = await bet_service.place_bet(
+        rental = await rental_service.create_rental(
             db,
             current_user.id,
             body.tracked_flight_id,
-            body.cargo_type_id,
-            body.stake_credits,
+            body.item_type_id,
+            body.rental_fee_credits,
         )
     except NotFoundError as exc:
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    except BettingClosedError as exc:
+    except CapacityClosedError as exc:
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except LicenseRequiredError as exc:
@@ -44,33 +44,33 @@ async def place_bet(
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     await db.commit()
-    return bet
+    return rental
 
 
-@router.get("/mine", response_model=list[BetOut])
-async def list_my_bets(
+@router.get("/mine", response_model=list[RentalOut])
+async def list_my_rentals(
     status_filter: str | None = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> list[Bet]:
+) -> list[Rental]:
     parsed_status = None
     if status_filter is not None:
         try:
-            parsed_status = BetStatus(status_filter)
+            parsed_status = RentalStatus(status_filter)
         except ValueError as exc:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status filter"
             ) from exc
-    return await bet_service.list_bets_for_user(db, current_user.id, parsed_status)
+    return await rental_service.list_rentals_for_user(db, current_user.id, parsed_status)
 
 
-@router.get("/{bet_id}", response_model=BetOut)
-async def get_bet(
-    bet_id: int,
+@router.get("/{rental_id}", response_model=RentalOut)
+async def get_rental(
+    rental_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> Bet:
+) -> Rental:
     try:
-        return await bet_service.get_bet_for_user(db, current_user.id, bet_id)
+        return await rental_service.get_rental_for_user(db, current_user.id, rental_id)
     except NotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc

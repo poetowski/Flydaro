@@ -6,8 +6,8 @@ import { listAirports } from "../api/airports";
 import { getFlightBoard } from "../api/flights";
 
 const STATUS_LABELS: Record<string, string> = {
-  AIRBORNE_OPEN: "Just took off -- betting open",
-  AIRBORNE_LOCKED: "In flight -- betting closed",
+  AIRBORNE_OPEN: "Just took off -- capacity open to rent",
+  AIRBORNE_LOCKED: "In flight -- capacity closed",
   LANDING_SUSPECTED: "Landing...",
 };
 
@@ -87,7 +87,7 @@ export function FlightBoardPage() {
           const aircraftType = flight.aircraft_type_id
             ? aircraftTypeById.get(flight.aircraft_type_id)
             : undefined;
-          const canBet = flight.bets_open && (aircraftType?.unlocked ?? false);
+          const canRent = flight.capacity_open && (aircraftType?.unlocked ?? false);
           return (
             <li key={flight.id} className="flight-card">
               <div>
@@ -103,13 +103,13 @@ export function FlightBoardPage() {
               <div className="flight-meta">
                 First seen airborne: {new Date(flight.first_seen_at).toLocaleTimeString()}
               </div>
-              {canBet ? (
-                <Link className="button" to={`/flights/${flight.id}/bet`}>
-                  Place bet
+              {canRent ? (
+                <Link className="button" to={`/flights/${flight.id}/rent`}>
+                  Rent capacity
                 </Link>
               ) : (
                 <span className="muted">
-                  {flight.bets_open ? "Pilot license required" : "Betting closed"}
+                  {flight.capacity_open ? "Pilot license required" : "Capacity closed"}
                 </span>
               )}
             </li>

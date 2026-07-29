@@ -1,15 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { listMyBets } from "../api/bets";
+import { listMyRentals } from "../api/rentals";
 import { getWallet } from "../api/wallet";
 
 const ACTIVE_STATUSES = new Set(["PENDING", "IN_PROGRESS", "RESOLVING"]);
 
 export function DashboardPage() {
   const { data: wallet } = useQuery({ queryKey: ["wallet"], queryFn: getWallet });
-  const { data: bets } = useQuery({ queryKey: ["bets", "mine"], queryFn: () => listMyBets() });
+  const { data: rentals } = useQuery({ queryKey: ["rentals", "mine"], queryFn: () => listMyRentals() });
 
-  const activeBets = bets?.filter((bet) => ACTIVE_STATUSES.has(bet.status)) ?? [];
+  const activeRentals = rentals?.filter((rental) => ACTIVE_STATUSES.has(rental.status)) ?? [];
 
   return (
     <div className="page">
@@ -20,17 +20,17 @@ export function DashboardPage() {
       </section>
 
       <section className="card">
-        <h2>Active bets ({activeBets.length})</h2>
-        {activeBets.length === 0 ? (
+        <h2>Active rentals ({activeRentals.length})</h2>
+        {activeRentals.length === 0 ? (
           <p>
-            No active bets right now. Head to the <Link to="/flights">flight board</Link> to place
-            one.
+            No active rentals right now. Head to the <Link to="/flights">flight board</Link> to
+            rent some capacity.
           </p>
         ) : (
-          <ul className="bet-list">
-            {activeBets.map((bet) => (
-              <li key={bet.id}>
-                Bet #{bet.id} -- {bet.stake_credits} credits staked -- {bet.status}
+          <ul className="rental-list">
+            {activeRentals.map((rental) => (
+              <li key={rental.id}>
+                Rental #{rental.id} -- {rental.rental_fee_credits} credits -- {rental.status}
               </li>
             ))}
           </ul>

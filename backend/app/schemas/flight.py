@@ -12,7 +12,7 @@ class TrackedFlightOut(BaseModel):
     origin_airport_id: int
     aircraft_type_id: int | None
     status: str
-    bets_open: bool
+    capacity_open: bool
     first_seen_at: datetime
     last_seen_at: datetime
     last_seen_lat: float | None

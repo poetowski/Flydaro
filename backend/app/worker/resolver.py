@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.flight import TrackedFlight, TrackedFlightStatus
-from app.services import bet_service, payout_service
+from app.services import rental_service, settlement_service
 from app.worker import thresholds
 from app.worker.tracker import RESOLVED_STATUSES, minutes_since
 
@@ -36,11 +36,11 @@ async def resolve_pending_landings(db: AsyncSession) -> None:
 
         duration_minutes = minutes_since(flight.first_seen_at, now)
         logger.info("Flight %s confirmed landed after grace period", flight.icao24)
-        await bet_service.resolve_tracked_flight(
+        await rental_service.resolve_tracked_flight(
             db,
             flight,
             TrackedFlightStatus.RESOLVED_LANDED,
-            payout_service.LANDED_REASON,
+            settlement_service.LANDED_REASON,
             _summary(flight, duration_minutes),
             resolved_at=now,
         )
@@ -59,11 +59,11 @@ async def sweep_timeouts_and_lost_signal(db: AsyncSession) -> None:
         duration_minutes = minutes_since(flight.first_seen_at, now)
         if duration_minutes > thresholds.MAX_FLIGHT_DURATION_CEILING_MINUTES:
             logger.info("Flight %s hit max duration ceiling, resolving via timeout", flight.icao24)
-            await bet_service.resolve_tracked_flight(
+            await rental_service.resolve_tracked_flight(
                 db,
                 flight,
                 TrackedFlightStatus.RESOLVED_TIMEOUT,
-                payout_service.TIMEOUT_REASON,
+                settlement_service.TIMEOUT_REASON,
                 _summary(flight, duration_minutes),
                 resolved_at=now,
             )
@@ -72,11 +72,11 @@ async def sweep_timeouts_and_lost_signal(db: AsyncSession) -> None:
         silence_minutes = minutes_since(flight.last_seen_at, now)
         if silence_minutes > thresholds.LOST_SIGNAL_CEILING_MINUTES:
             logger.info("Flight %s lost signal, resolving via fallback", flight.icao24)
-            await bet_service.resolve_tracked_flight(
+            await rental_service.resolve_tracked_flight(
                 db,
                 flight,
                 TrackedFlightStatus.RESOLVED_LOST_SIGNAL,
-                payout_service.LOST_SIGNAL_REASON,
+                settlement_service.LOST_SIGNAL_REASON,
                 _summary(flight, duration_minutes),
                 resolved_at=now,
             )

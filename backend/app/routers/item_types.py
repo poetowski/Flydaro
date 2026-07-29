@@ -4,17 +4,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_current_user
 from app.db.session import get_db
-from app.models.cargo import CargoType
+from app.models.item_type import ItemType
 from app.models.user import User
-from app.schemas.cargo import CargoTypeOut
+from app.schemas.item_type import ItemTypeOut
 
-router = APIRouter(prefix="/cargo-types", tags=["cargo"])
+router = APIRouter(prefix="/item-types", tags=["item-types"])
 
 
-@router.get("", response_model=list[CargoTypeOut])
-async def list_cargo_types(
+@router.get("", response_model=list[ItemTypeOut])
+async def list_item_types(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> list[CargoType]:
-    result = await db.scalars(select(CargoType).where(CargoType.is_active.is_(True)))
+) -> list[ItemType]:
+    result = await db.scalars(select(ItemType).where(ItemType.is_active.is_(True)))
     return list(result.all())

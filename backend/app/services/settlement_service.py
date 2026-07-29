@@ -1,11 +1,11 @@
-"""Phase 1 payout formula: duration-bucket multipliers, always pays >0.
+"""Phase 1 settlement formula: duration-bucket multipliers, always pays >0.
 
 A clean confirmed landing (`landed_normally`) uses the full formula:
-    payout = stake * duration_bucket_multiplier * cargo_type.payout_multiplier
+    settlement = rental_fee * duration_bucket_multiplier * item_type.settlement_multiplier
 
 A fallback resolution (`timeout` / `lost_signal` -- our own tracking gave up,
 not a real negative outcome for the flight) pays a small flat profit instead,
-deliberately worse than any real landing outcome and ignoring the cargo
+deliberately worse than any real landing outcome and ignoring the item
 multiplier, so players are never indifferent between a real resolution and a
 coverage-gap fallback. Exact multipliers are starting guesses to tune from
 real play (see plan's "Open risks").
@@ -32,27 +32,27 @@ def _duration_bucket_multiplier(duration_minutes: float) -> float:
     return DURATION_BUCKETS[-1][1]
 
 
-def compute_payout(
-    stake_credits: int,
+def compute_settlement(
+    rental_fee_credits: int,
     duration_minutes: float,
-    cargo_payout_multiplier: float,
+    item_settlement_multiplier: float,
     resolution_reason: str,
 ) -> tuple[int, dict]:
     if resolution_reason == LANDED_REASON:
         base_multiplier = _duration_bucket_multiplier(duration_minutes)
-        total_multiplier = base_multiplier * cargo_payout_multiplier
+        total_multiplier = base_multiplier * item_settlement_multiplier
     else:
         base_multiplier = FALLBACK_MULTIPLIER
         total_multiplier = base_multiplier
 
-    payout_credits = max(1, round(stake_credits * total_multiplier))
+    settlement_credits = max(1, round(rental_fee_credits * total_multiplier))
     breakdown = {
-        "stake_credits": stake_credits,
+        "rental_fee_credits": rental_fee_credits,
         "duration_minutes": round(duration_minutes, 1),
         "base_multiplier": base_multiplier,
-        "cargo_multiplier": cargo_payout_multiplier if resolution_reason == LANDED_REASON else None,
+        "item_multiplier": item_settlement_multiplier if resolution_reason == LANDED_REASON else None,
         "total_multiplier": total_multiplier,
-        "payout_credits": payout_credits,
+        "settlement_credits": settlement_credits,
         "resolution_reason": resolution_reason,
     }
-    return payout_credits, breakdown
+    return settlement_credits, breakdown

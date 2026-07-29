@@ -73,7 +73,7 @@ class TrackedFlight(Base):
         nullable=False,
         default=TrackedFlightStatus.AIRBORNE_OPEN,
     )
-    bets_open: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    capacity_open: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     # Set the first time on_ground/low-speed criteria are met; used to time the
     # landing-confirmation grace period independent of poll cadence.

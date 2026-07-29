@@ -12,8 +12,8 @@ TAKEOFF_MAX_ALTITUDE_M = 1500.0  # ~5000 ft
 TAKEOFF_MIN_VERTICAL_RATE_MS = 3.0
 TAKEOFF_MAX_DISTANCE_KM = 15.0
 
-# Betting window: how long AIRBORNE_OPEN stays open before locking.
-BETTING_WINDOW_MINUTES = 5.0
+# Rental window: how long AIRBORNE_OPEN stays open (capacity rentable) before locking.
+CAPACITY_WINDOW_MINUTES = 5.0
 
 # Landing detection: on_ground=True is the strong signal; these are the
 # fallback low-altitude/low-speed/near-zero-climb criteria when on_ground is

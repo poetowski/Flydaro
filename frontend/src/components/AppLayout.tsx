@@ -26,7 +26,7 @@ export function AppLayout() {
             Dashboard
           </NavLink>
           <NavLink to="/flights">Flight Board</NavLink>
-          <NavLink to="/bets">Bet History</NavLink>
+          <NavLink to="/rentals">Rental History</NavLink>
           <NavLink to="/licenses">Licenses</NavLink>
         </nav>
         <div className="header-right">

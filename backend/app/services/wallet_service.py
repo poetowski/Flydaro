@@ -19,7 +19,7 @@ async def apply_ledger_entry(
     user_id: int,
     delta_credits: int,
     reason: LedgerReason,
-    related_bet_id: int | None = None,
+    related_rental_id: int | None = None,
 ) -> Wallet:
     """Atomically apply a signed credit delta to a user's wallet via the ledger.
 
@@ -39,7 +39,7 @@ async def apply_ledger_entry(
             user_id=user_id,
             delta_credits=delta_credits,
             reason=reason,
-            related_bet_id=related_bet_id,
+            related_rental_id=related_rental_id,
         )
     )
     await db.flush()

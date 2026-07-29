@@ -31,7 +31,7 @@ export function SignupPage() {
       <form className="auth-form" onSubmit={handleSubmit}>
         <h1>Flydaro</h1>
         <p className="subtitle">
-          Create an account and get a starting balance to bet on real flights.
+          Create an account and get a starting balance to rent capacity on real flights.
         </p>
         {error && <p className="form-error">{error}</p>}
         <label>

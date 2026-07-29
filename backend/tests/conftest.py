@@ -8,7 +8,7 @@ from app.db.base import Base
 from app.models import *  # noqa: F401,F403 register all models on Base.metadata
 from app.models.aircraft import AircraftType
 from app.models.airport import Airport
-from app.models.cargo import CargoType
+from app.models.item_type import ItemCategory, ItemType
 from app.models.flight import TrackedFlight, TrackedFlightStatus
 from app.models.user import User
 
@@ -114,12 +114,13 @@ async def locked_aircraft_type(db) -> AircraftType:
 
 
 @pytest_asyncio.fixture
-async def cargo_type(db) -> CargoType:
-    c = CargoType(
+async def item_type(db) -> ItemType:
+    c = ItemType(
         code="PINEAPPLES",
         name="Pineapples",
+        category=ItemCategory.CARGO,
         flavor_text="A crate of pineapples.",
-        payout_multiplier=1.10,
+        settlement_multiplier=1.10,
         base_cost_credits=0,
         is_active=True,
     )
@@ -150,7 +151,7 @@ async def open_flight(db, airport, aircraft_type) -> TrackedFlight:
         last_seen_vertical_rate=5.0,
         last_seen_on_ground=False,
         status=TrackedFlightStatus.AIRBORNE_OPEN,
-        bets_open=True,
+        capacity_open=True,
     )
     db.add(flight)
     await db.flush()

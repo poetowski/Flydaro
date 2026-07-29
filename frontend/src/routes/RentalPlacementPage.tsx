@@ -1,12 +1,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { placeBet } from "../api/bets";
-import { listCargoTypes } from "../api/cargo";
+import { createRental } from "../api/rentals";
+import { listItemTypes } from "../api/itemTypes";
 import { ApiError } from "../api/client";
 import { getFlight } from "../api/flights";
 
-export function BetPlacementPage() {
+export function RentalPlacementPage() {
   const { flightId } = useParams<{ flightId: string }>();
   const numericFlightId = Number(flightId);
   const navigate = useNavigate();
@@ -16,28 +16,28 @@ export function BetPlacementPage() {
     queryKey: ["flights", numericFlightId],
     queryFn: () => getFlight(numericFlightId),
   });
-  const { data: cargoTypes } = useQuery({ queryKey: ["cargo-types"], queryFn: listCargoTypes });
+  const { data: itemTypes } = useQuery({ queryKey: ["item-types"], queryFn: listItemTypes });
 
-  const [cargoTypeId, setCargoTypeId] = useState<number | null>(null);
-  const [stake, setStake] = useState(100);
+  const [itemTypeId, setItemTypeId] = useState<number | null>(null);
+  const [rentalFee, setRentalFee] = useState(100);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (cargoTypeId === null) {
-      setError("Pick a cargo type first");
+    if (itemTypeId === null) {
+      setError("Pick an item type first");
       return;
     }
     setError(null);
     setSubmitting(true);
     try {
-      await placeBet(numericFlightId, cargoTypeId, stake);
+      await createRental(numericFlightId, itemTypeId, rentalFee);
       await queryClient.invalidateQueries({ queryKey: ["wallet"] });
-      await queryClient.invalidateQueries({ queryKey: ["bets", "mine"] });
-      navigate("/bets");
+      await queryClient.invalidateQueries({ queryKey: ["rentals", "mine"] });
+      navigate("/rentals");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not place bet");
+      setError(err instanceof ApiError ? err.message : "Could not rent capacity");
     } finally {
       setSubmitting(false);
     }
@@ -45,51 +45,51 @@ export function BetPlacementPage() {
 
   if (!flight) return <p className="page">Loading flight...</p>;
 
-  if (!flight.bets_open) {
+  if (!flight.capacity_open) {
     return (
       <div className="page">
-        <h1>Betting closed</h1>
-        <p>Betting for {flight.callsign ?? flight.icao24} has already closed.</p>
+        <h1>Capacity closed</h1>
+        <p>Capacity on {flight.callsign ?? flight.icao24} is no longer available to rent.</p>
       </div>
     );
   }
 
   return (
     <div className="page">
-      <h1>Bet on {flight.callsign ?? flight.icao24}</h1>
-      <form className="bet-form" onSubmit={handleSubmit}>
+      <h1>Rent capacity on {flight.callsign ?? flight.icao24}</h1>
+      <form className="rental-form" onSubmit={handleSubmit}>
         {error && <p className="form-error">{error}</p>}
 
         <fieldset>
-          <legend>Cargo type</legend>
-          {cargoTypes?.map((cargo) => (
-            <label key={cargo.id} className="cargo-option">
+          <legend>Item type</legend>
+          {itemTypes?.map((item) => (
+            <label key={item.id} className="item-option">
               <input
                 type="radio"
-                name="cargoType"
-                value={cargo.id}
-                checked={cargoTypeId === cargo.id}
-                onChange={() => setCargoTypeId(cargo.id)}
+                name="itemType"
+                value={item.id}
+                checked={itemTypeId === item.id}
+                onChange={() => setItemTypeId(item.id)}
               />
               <span>
-                <strong>{cargo.name}</strong> ({cargo.payout_multiplier}x) -- {cargo.flavor_text}
+                <strong>{item.name}</strong> ({item.category}, {item.settlement_multiplier}x) -- {item.flavor_text}
               </span>
             </label>
           ))}
         </fieldset>
 
         <label>
-          Stake (credits)
+          Rental fee (credits)
           <input
             type="number"
             min={1}
-            value={stake}
-            onChange={(e) => setStake(Number(e.target.value))}
+            value={rentalFee}
+            onChange={(e) => setRentalFee(Number(e.target.value))}
           />
         </label>
 
         <button type="submit" disabled={submitting}>
-          {submitting ? "Placing bet..." : "Place bet"}
+          {submitting ? "Renting capacity..." : "Rent capacity"}
         </button>
       </form>
     </div>

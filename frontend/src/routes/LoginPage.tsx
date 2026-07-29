@@ -29,7 +29,7 @@ export function LoginPage() {
     <div className="auth-page">
       <form className="auth-form" onSubmit={handleSubmit}>
         <h1>Flydaro</h1>
-        <p className="subtitle">Log in to keep betting on real flights.</p>
+        <p className="subtitle">Log in to keep renting capacity on real flights.</p>
         {error && <p className="form-error">{error}</p>}
         <label>
           Email
