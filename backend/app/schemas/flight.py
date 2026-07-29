@@ -1,0 +1,21 @@
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict
+
+
+class TrackedFlightOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    icao24: str
+    callsign: str | None
+    origin_airport_id: int
+    status: str
+    bets_open: bool
+    first_seen_at: datetime
+    last_seen_at: datetime
+    last_seen_lat: float | None
+    last_seen_lon: float | None
+    last_seen_alt: float | None
+    resolved_at: datetime | None
+    resolution_summary: dict | None

@@ -1,0 +1,69 @@
+from app.models.airport import Airport
+from app.worker.opensky_client import StateVector
+from app.worker.tracker import looks_like_landing, looks_like_recent_takeoff
+
+EHAM = Airport(
+    id=1,
+    icao4="EHAM",
+    iata="AMS",
+    name="Amsterdam Schiphol",
+    city="Amsterdam",
+    country="Netherlands",
+    lat=52.3086,
+    lon=4.7639,
+    bbox_lamin=51.9586,
+    bbox_lomin=4.4139,
+    bbox_lamax=52.6586,
+    bbox_lomax=5.1139,
+)
+
+
+def _state(lat, lon, alt, on_ground, velocity=100.0, vertical_rate=5.0):
+    raw = ["abc123", "TST123 ", "NL", None, None, lon, lat, alt, on_ground, velocity, 0, vertical_rate, None, alt]
+    return StateVector.from_raw(raw)
+
+
+def test_takeoff_detected_close_to_airport_low_and_climbing():
+    state = _state(52.32, 4.78, 300.0, False, vertical_rate=6.0)
+    assert looks_like_recent_takeoff(state, EHAM) is True
+
+
+def test_takeoff_not_detected_when_on_ground():
+    state = _state(52.31, 4.77, 0.0, True, velocity=0.0, vertical_rate=0.0)
+    assert looks_like_recent_takeoff(state, EHAM) is False
+
+
+def test_takeoff_not_detected_too_far_from_airport():
+    # Roughly 100+ km away
+    state = _state(53.5, 4.78, 300.0, False, vertical_rate=6.0)
+    assert looks_like_recent_takeoff(state, EHAM) is False
+
+
+def test_takeoff_not_detected_already_cruising():
+    state = _state(52.32, 4.78, 10000.0, False, vertical_rate=0.0)
+    assert looks_like_recent_takeoff(state, EHAM) is False
+
+
+def test_takeoff_not_detected_descending():
+    state = _state(52.32, 4.78, 300.0, False, vertical_rate=-6.0)
+    assert looks_like_recent_takeoff(state, EHAM) is False
+
+
+def test_landing_detected_via_on_ground_flag():
+    state = _state(52.31, 4.77, 500.0, True, velocity=5.0, vertical_rate=0.0)
+    assert looks_like_landing(state) is True
+
+
+def test_landing_detected_via_low_alt_low_speed_fallback():
+    state = _state(52.31, 4.77, 100.0, False, velocity=30.0, vertical_rate=1.0)
+    assert looks_like_landing(state) is True
+
+
+def test_landing_not_detected_while_cruising():
+    state = _state(48.0, 8.0, 10000.0, False, velocity=250.0, vertical_rate=0.0)
+    assert looks_like_landing(state) is False
+
+
+def test_landing_not_detected_still_descending_fast():
+    state = _state(52.31, 4.77, 100.0, False, velocity=30.0, vertical_rate=-8.0)
+    assert looks_like_landing(state) is False

@@ -1,0 +1,288 @@
+:root {
+  --text: #2a2a30;
+  --text-muted: #6b6375;
+  --bg: #fafafa;
+  --card-bg: #ffffff;
+  --border: #e2e2e6;
+  --accent: #6b3bff;
+  --accent-contrast: #ffffff;
+  --success: #1a9a5b;
+  --danger: #c0392b;
+
+  color-scheme: light dark;
+  font: 16px/1.5 system-ui, "Segoe UI", Roboto, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: #e5e4e8;
+    --text-muted: #9ca3af;
+    --bg: #14151a;
+    --card-bg: #1d1e25;
+    --border: #2e303a;
+    --accent: #a684ff;
+    --accent-contrast: #14151a;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+#root {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.app-header .brand {
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--accent);
+}
+
+.app-header nav {
+  display: flex;
+  gap: 16px;
+  flex: 1;
+}
+
+.app-header nav a {
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.app-header nav a.active {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.wallet-badge {
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.app-main {
+  flex: 1;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.page h1 {
+  margin-top: 0;
+}
+
+.card {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+}
+
+.big-number {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+button,
+.button {
+  display: inline-block;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.auth-page {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.auth-form {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.auth-form input {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--card-bg);
+  color: var(--text);
+}
+
+.auth-form .subtitle {
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.auth-switch {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.form-error {
+  color: var(--danger);
+}
+
+.flight-list,
+.bet-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.flight-card,
+.bet-card {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.flight-status {
+  margin-left: 10px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.flight-meta {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.airport-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.airport-filter select {
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text);
+}
+
+.bet-form fieldset {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin: 0 0 16px;
+  padding: 12px 16px;
+}
+
+.cargo-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.bet-form label:not(.cargo-option) {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
+  color: var(--text-muted);
+}
+
+.bet-form input[type="number"] {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--card-bg);
+  color: var(--text);
+  max-width: 200px;
+}
+
+.bet-status {
+  margin-left: 10px;
+  font-size: 0.8rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.bet-status-resolved {
+  background: var(--success);
+  color: #fff;
+}

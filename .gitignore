@@ -1,0 +1,16 @@
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+
+# Env files
+.env
+.env.local
+!.env.example
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
