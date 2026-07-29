@@ -1,6 +1,14 @@
+from datetime import datetime, timezone
+
+from app.models.aircraft import AircraftRegistry
 from app.models.airport import Airport
 from app.worker.opensky_client import StateVector
-from app.worker.tracker import looks_like_landing, looks_like_recent_takeoff
+from app.worker.tracker import (
+    create_tracked_flight,
+    looks_like_landing,
+    looks_like_recent_takeoff,
+    resolve_aircraft_type_id,
+)
 
 EHAM = Airport(
     id=1,
@@ -67,3 +75,30 @@ def test_landing_not_detected_while_cruising():
 def test_landing_not_detected_still_descending_fast():
     state = _state(52.31, 4.77, 100.0, False, velocity=30.0, vertical_rate=-8.0)
     assert looks_like_landing(state) is False
+
+
+async def test_resolve_aircraft_type_id_matches_registry_entry(db, aircraft_type):
+    db.add(AircraftRegistry(icao24="abc123", aircraft_type_id=aircraft_type.id))
+    await db.flush()
+
+    resolved = await resolve_aircraft_type_id(db, "ABC123")  # case-insensitive lookup
+    assert resolved == aircraft_type.id
+
+
+async def test_resolve_aircraft_type_id_unknown_icao24_returns_none(db):
+    assert await resolve_aircraft_type_id(db, "ffffff") is None
+
+
+async def test_create_tracked_flight_resolves_known_aircraft_type(db, airport, aircraft_type):
+    db.add(AircraftRegistry(icao24="abc123", aircraft_type_id=aircraft_type.id))
+    await db.flush()
+
+    state = _state(52.32, 4.78, 300.0, False, vertical_rate=6.0)
+    flight = await create_tracked_flight(db, state, airport, datetime.now(timezone.utc))
+    assert flight.aircraft_type_id == aircraft_type.id
+
+
+async def test_create_tracked_flight_leaves_unknown_aircraft_type_null(db, airport):
+    state = _state(52.32, 4.78, 300.0, False, vertical_rate=6.0)
+    flight = await create_tracked_flight(db, state, airport, datetime.now(timezone.utc))
+    assert flight.aircraft_type_id is None

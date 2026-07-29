@@ -20,3 +20,7 @@ class ConflictError(DomainError):
 
 class BettingClosedError(DomainError):
     pass
+
+
+class LicenseRequiredError(DomainError):
+    pass

@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.db.base import Base
 from app.models import *  # noqa: F401,F403 register all models on Base.metadata
+from app.models.aircraft import AircraftType
 from app.models.airport import Airport
 from app.models.cargo import CargoType
 from app.models.flight import TrackedFlight, TrackedFlightStatus
@@ -60,6 +61,59 @@ async def airport(db) -> Airport:
 
 
 @pytest_asyncio.fixture
+async def aircraft_type(db) -> AircraftType:
+    t = AircraftType(
+        icao_type_code="A320",
+        name="Airbus A320",
+        manufacturer="Airbus",
+        is_starter=True,
+        unlock_cost_credits=0,
+        is_active=True,
+    )
+    db.add(t)
+    await db.flush()
+    return t
+
+
+@pytest_asyncio.fixture
+async def locked_airport(db) -> Airport:
+    a = Airport(
+        icao4="KJFK",
+        iata="JFK",
+        name="John F. Kennedy Intl",
+        city="New York",
+        country="United States",
+        lat=40.6413,
+        lon=-73.7781,
+        bbox_lamin=40.2913,
+        bbox_lomin=-74.1281,
+        bbox_lamax=40.9913,
+        bbox_lomax=-73.4281,
+        is_starter=False,
+        is_active=False,
+        unlock_cost_credits=400,
+    )
+    db.add(a)
+    await db.flush()
+    return a
+
+
+@pytest_asyncio.fixture
+async def locked_aircraft_type(db) -> AircraftType:
+    t = AircraftType(
+        icao_type_code="B77W",
+        name="Boeing 777-300ER",
+        manufacturer="Boeing",
+        is_starter=False,
+        unlock_cost_credits=400,
+        is_active=True,
+    )
+    db.add(t)
+    await db.flush()
+    return t
+
+
+@pytest_asyncio.fixture
 async def cargo_type(db) -> CargoType:
     c = CargoType(
         code="PINEAPPLES",
@@ -75,12 +129,13 @@ async def cargo_type(db) -> CargoType:
 
 
 @pytest_asyncio.fixture
-async def open_flight(db, airport) -> TrackedFlight:
+async def open_flight(db, airport, aircraft_type) -> TrackedFlight:
     now = datetime.now(timezone.utc)
     flight = TrackedFlight(
         icao24="abc123",
         callsign="TST123",
         origin_airport_id=airport.id,
+        aircraft_type_id=aircraft_type.id,
         first_seen_at=now - timedelta(minutes=1),
         first_seen_lat=airport.lat,
         first_seen_lon=airport.lon,

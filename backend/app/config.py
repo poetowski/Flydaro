@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     opensky_api_base: str = "https://opensky-network.org/api"
     poller_interval_seconds: int = 45
 
+    # Bulk, irregularly-updated, unversioned "as-is" CSV -- not a live API.
+    # Verify this URL still resolves before relying on it; OpenSky gives no
+    # stability guarantee on it.
+    aircraft_registry_csv_url: str = "https://opensky-network.org/datasets/metadata/aircraftDatabase.csv"
+
 
 @lru_cache
 def get_settings() -> Settings:

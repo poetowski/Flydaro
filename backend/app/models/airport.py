@@ -20,4 +20,9 @@ class Airport(Base):
     bbox_lamax: Mapped[float] = mapped_column(Float, nullable=False)
     bbox_lomax: Mapped[float] = mapped_column(Float, nullable=False)
     is_starter: Mapped[bool] = mapped_column(default=False, nullable=False)
+    # Poller-scheduling flag only ("does the worker watch this bbox") --
+    # NOT a per-user access check. Flipped True the moment any player unlocks
+    # a non-starter airport. Per-user access is is_starter OR a row in
+    # user_airport_unlocks; see app/services/license_service.py.
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
+    unlock_cost_credits: Mapped[int] = mapped_column(nullable=False, default=0)

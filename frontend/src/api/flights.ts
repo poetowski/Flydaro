@@ -5,6 +5,7 @@ export interface TrackedFlight {
   icao24: string;
   callsign: string | null;
   origin_airport_id: number;
+  aircraft_type_id: number | null;
   status: string;
   bets_open: boolean;
   first_seen_at: string;
@@ -16,8 +17,16 @@ export interface TrackedFlight {
   resolution_summary: Record<string, unknown> | null;
 }
 
-export const getFlightBoard = (airportId?: number): Promise<TrackedFlight[]> =>
-  apiRequest<TrackedFlight[]>(`/flights/board${airportId ? `?airport_id=${airportId}` : ""}`);
+export const getFlightBoard = (
+  airportId?: number,
+  aircraftTypeId?: number,
+): Promise<TrackedFlight[]> => {
+  const params = new URLSearchParams();
+  if (airportId !== undefined) params.set("airport_id", String(airportId));
+  if (aircraftTypeId !== undefined) params.set("aircraft_type_id", String(aircraftTypeId));
+  const query = params.toString();
+  return apiRequest<TrackedFlight[]>(`/flights/board${query ? `?${query}` : ""}`);
+};
 
 export const getFlight = (id: number): Promise<TrackedFlight> =>
   apiRequest<TrackedFlight>(`/flights/${id}`);

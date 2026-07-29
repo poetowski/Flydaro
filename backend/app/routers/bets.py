@@ -1,7 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import BettingClosedError, InsufficientFundsError, NotFoundError
+from app.core.exceptions import (
+    BettingClosedError,
+    InsufficientFundsError,
+    LicenseRequiredError,
+    NotFoundError,
+)
 from app.core.security import get_current_user
 from app.db.session import get_db
 from app.models.bet import Bet, BetStatus
@@ -32,6 +37,9 @@ async def place_bet(
     except BettingClosedError as exc:
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except LicenseRequiredError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     except InsufficientFundsError as exc:
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

@@ -3,12 +3,13 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import BettingClosedError, NotFoundError
+from app.core.exceptions import BettingClosedError, LicenseRequiredError, NotFoundError
+from app.models.airport import Airport
 from app.models.bet import Bet, BetStatus
 from app.models.cargo import CargoType
 from app.models.flight import TrackedFlight, TrackedFlightStatus
 from app.models.wallet import LedgerReason
-from app.services import payout_service
+from app.services import license_service, payout_service
 from app.services.wallet_service import apply_ledger_entry
 
 
@@ -24,6 +25,17 @@ async def place_bet(
         raise NotFoundError("Flight not found")
     if not flight.bets_open or flight.status != TrackedFlightStatus.AIRBORNE_OPEN:
         raise BettingClosedError("Betting has closed for this flight")
+
+    airport = await db.get(Airport, flight.origin_airport_id)
+    if not await license_service.user_has_airport_unlock(db, user_id, airport):
+        raise LicenseRequiredError("You have not unlocked this airport")
+
+    if flight.aircraft_type_id is None:
+        raise LicenseRequiredError("This flight's aircraft type could not be identified")
+    if not await license_service.user_has_aircraft_type_unlock(
+        db, user_id, flight.aircraft_type_id
+    ):
+        raise LicenseRequiredError("You have not unlocked this aircraft type")
 
     cargo_type = await db.get(CargoType, cargo_type_id)
     if cargo_type is None or not cargo_type.is_active:

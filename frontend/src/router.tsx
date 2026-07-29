@@ -5,6 +5,7 @@ import { BetHistoryPage } from "./routes/BetHistoryPage";
 import { BetPlacementPage } from "./routes/BetPlacementPage";
 import { DashboardPage } from "./routes/DashboardPage";
 import { FlightBoardPage } from "./routes/FlightBoardPage";
+import { LicensesPage } from "./routes/LicensesPage";
 import { LoginPage } from "./routes/LoginPage";
 import { SignupPage } from "./routes/SignupPage";
 
@@ -21,6 +22,7 @@ export const router = createBrowserRouter([
           { path: "/flights", element: <FlightBoardPage /> },
           { path: "/flights/:flightId/bet", element: <BetPlacementPage /> },
           { path: "/bets", element: <BetHistoryPage /> },
+          { path: "/licenses", element: <LicensesPage /> },
         ],
       },
     ],

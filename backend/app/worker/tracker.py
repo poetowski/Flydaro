@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.aircraft import AircraftRegistry
 from app.models.airport import Airport
 from app.models.flight import FlightStateSample, TrackedFlight, TrackedFlightStatus
 from app.worker import thresholds
@@ -50,13 +51,26 @@ async def find_open_tracked_flight(db: AsyncSession, icao24: str) -> TrackedFlig
     )
 
 
+async def resolve_aircraft_type_id(db: AsyncSession, icao24: str) -> int | None:
+    """Single PK lookup against our small, curated-types-only registry table
+    (populated by worker/aircraft_registry_sync.py). Returns None if this
+    icao24 was never matched to one of our curated aircraft types -- that's
+    a normal, expected outcome given the free registry's coverage gaps, not
+    an error.
+    """
+    entry = await db.get(AircraftRegistry, icao24.lower())
+    return entry.aircraft_type_id if entry else None
+
+
 async def create_tracked_flight(
     db: AsyncSession, state: StateVector, airport: Airport, observed_at: datetime
 ) -> TrackedFlight:
+    aircraft_type_id = await resolve_aircraft_type_id(db, state.icao24)
     flight = TrackedFlight(
         icao24=state.icao24,
         callsign=state.callsign,
         origin_airport_id=airport.id,
+        aircraft_type_id=aircraft_type_id,
         first_seen_at=observed_at,
         first_seen_lat=state.latitude,
         first_seen_lon=state.longitude,

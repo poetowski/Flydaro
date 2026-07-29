@@ -1,14 +1,12 @@
 from pydantic import BaseModel, ConfigDict
 
 
-class AirportOut(BaseModel):
+class AircraftTypeOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    icao4: str
-    iata: str | None
+    icao_type_code: str
     name: str
-    city: str
-    country: str
+    manufacturer: str
     unlock_cost_credits: int
     unlocked: bool

@@ -46,6 +46,12 @@ class TrackedFlight(Base):
     icao24: Mapped[str] = mapped_column(String(6), nullable=False, index=True)
     callsign: Mapped[str | None] = mapped_column(String(20), nullable=True)
     origin_airport_id: Mapped[int] = mapped_column(ForeignKey("airports.id"), nullable=False)
+    # NULL = unresolved (icao24 not in the free aircraft registry, or its type
+    # isn't one of our curated ones) -- both the board's hide-signal and the
+    # bet-placement gate's "unknown type" rejection key off this being NULL.
+    aircraft_type_id: Mapped[int | None] = mapped_column(
+        ForeignKey("aircraft_types.id"), nullable=True, index=True
+    )
 
     first_seen_at: Mapped[datetime] = mapped_column(nullable=False)
     first_seen_lat: Mapped[float] = mapped_column(Float, nullable=False)

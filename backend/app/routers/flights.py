@@ -7,6 +7,7 @@ from app.db.session import get_db
 from app.models.flight import TrackedFlight, TrackedFlightStatus
 from app.models.user import User
 from app.schemas.flight import TrackedFlightOut
+from app.services import license_service
 
 router = APIRouter(prefix="/flights", tags=["flights"])
 
@@ -20,11 +21,22 @@ OPEN_BOARD_STATUSES = (
 @router.get("/board", response_model=list[TrackedFlightOut])
 async def get_flight_board(
     airport_id: int | None = None,
+    aircraft_type_id: int | None = None,
     status_filter: str | None = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[TrackedFlight]:
-    stmt = select(TrackedFlight)
+    unlocked_airport_ids = await license_service.get_unlocked_airport_ids(db, current_user.id)
+
+    # Floor, not just a UI convenience: applied unconditionally, regardless
+    # of whether airport_id narrows further below, so a user can never see
+    # another airport's flights just by omitting the param.
+    stmt = select(TrackedFlight).where(
+        TrackedFlight.origin_airport_id.in_(unlocked_airport_ids),
+        # Hides flights whose aircraft type couldn't be resolved at all --
+        # a query-level filter, not just a betting-time check.
+        TrackedFlight.aircraft_type_id.is_not(None),
+    )
     if status_filter is not None:
         try:
             stmt = stmt.where(TrackedFlight.status == TrackedFlightStatus(status_filter))
@@ -36,6 +48,11 @@ async def get_flight_board(
         stmt = stmt.where(TrackedFlight.status.in_(OPEN_BOARD_STATUSES))
     if airport_id is not None:
         stmt = stmt.where(TrackedFlight.origin_airport_id == airport_id)
+    if aircraft_type_id is not None:
+        # Deliberately not restricted to unlocked types -- a known-but-locked
+        # type stays visible/filterable so the player knows what they're
+        # missing; place_bet is what actually gates betting on it.
+        stmt = stmt.where(TrackedFlight.aircraft_type_id == aircraft_type_id)
     stmt = stmt.order_by(TrackedFlight.first_seen_at.desc())
 
     result = await db.scalars(stmt)

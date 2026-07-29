@@ -27,6 +27,7 @@ export function AppLayout() {
           </NavLink>
           <NavLink to="/flights">Flight Board</NavLink>
           <NavLink to="/bets">Bet History</NavLink>
+          <NavLink to="/licenses">Licenses</NavLink>
         </nav>
         <div className="header-right">
           <span className="wallet-badge">{wallet ? `${wallet.balance_credits} cr` : "..."}</span>

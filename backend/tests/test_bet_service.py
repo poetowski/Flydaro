@@ -2,7 +2,12 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.core.exceptions import BettingClosedError, InsufficientFundsError, NotFoundError
+from app.core.exceptions import (
+    BettingClosedError,
+    InsufficientFundsError,
+    LicenseRequiredError,
+    NotFoundError,
+)
 from app.models.bet import BetStatus
 from app.models.flight import TrackedFlightStatus
 from app.services import bet_service
@@ -40,6 +45,31 @@ async def test_place_bet_unknown_flight_raises(db, user, cargo_type):
     await _fund(db, user)
     with pytest.raises(NotFoundError):
         await bet_service.place_bet(db, user.id, 999, cargo_type.id, 300)
+
+
+async def test_place_bet_unresolved_aircraft_type_raises(db, user, open_flight, cargo_type):
+    await _fund(db, user)
+    open_flight.aircraft_type_id = None
+    with pytest.raises(LicenseRequiredError):
+        await bet_service.place_bet(db, user.id, open_flight.id, cargo_type.id, 300)
+
+
+async def test_place_bet_locked_aircraft_type_raises(
+    db, user, open_flight, cargo_type, locked_aircraft_type
+):
+    await _fund(db, user)
+    open_flight.aircraft_type_id = locked_aircraft_type.id
+    with pytest.raises(LicenseRequiredError):
+        await bet_service.place_bet(db, user.id, open_flight.id, cargo_type.id, 300)
+
+
+async def test_place_bet_locked_airport_raises(
+    db, user, open_flight, cargo_type, locked_airport
+):
+    await _fund(db, user)
+    open_flight.origin_airport_id = locked_airport.id
+    with pytest.raises(LicenseRequiredError):
+        await bet_service.place_bet(db, user.id, open_flight.id, cargo_type.id, 300)
 
 
 async def test_lock_betting_transitions_pending_bets_to_in_progress(db, user, open_flight, cargo_type):

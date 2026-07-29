@@ -10,6 +10,7 @@ class TrackedFlightOut(BaseModel):
     icao24: str
     callsign: str | None
     origin_airport_id: int
+    aircraft_type_id: int | None
     status: str
     bets_open: bool
     first_seen_at: datetime

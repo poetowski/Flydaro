@@ -7,6 +7,8 @@ export interface Airport {
   name: string;
   city: string;
   country: string;
+  unlock_cost_credits: number;
+  unlocked: boolean;
 }
 
 export const listAirports = (): Promise<Airport[]> => apiRequest<Airport[]>("/airports");
