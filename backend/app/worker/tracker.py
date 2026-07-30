@@ -131,4 +131,36 @@ async def record_sample(
 
 def minutes_since(reference: datetime, now: datetime | None = None) -> float:
     now = now or datetime.now(timezone.utc)
+    # Every datetime in this codebase is conceptually UTC, but SQLite (unlike
+    # Postgres) can hand back a naive value after a flush-forced refresh on a
+    # freshly-inserted row -- normalize rather than let the subtraction raise.
+    if reference.tzinfo is None:
+        reference = reference.replace(tzinfo=timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
     return (now - reference).total_seconds() / 60
+
+
+def build_resolution_summary(flight: TrackedFlight, duration_minutes: float) -> dict:
+    return {
+        "duration_minutes": round(duration_minutes, 1),
+        "last_lat": flight.last_seen_lat,
+        "last_lon": flight.last_seen_lon,
+        "last_alt": flight.last_seen_alt,
+        "origin_airport_id": flight.origin_airport_id,
+    }
+
+
+def duration_ceiling_breached(flight: TrackedFlight, now: datetime) -> bool:
+    return minutes_since(flight.first_seen_at, now) > thresholds.MAX_FLIGHT_DURATION_CEILING_MINUTES
+
+
+def lost_signal_ceiling_breached(flight: TrackedFlight, now: datetime) -> bool:
+    return minutes_since(flight.last_seen_at, now) > thresholds.LOST_SIGNAL_CEILING_MINUTES
+
+
+def landing_grace_period_elapsed(flight: TrackedFlight, now: datetime) -> bool:
+    return (
+        flight.landing_suspected_at is not None
+        and minutes_since(flight.landing_suspected_at, now) >= thresholds.LANDING_GRACE_PERIOD_MINUTES
+    )

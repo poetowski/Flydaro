@@ -50,3 +50,9 @@ STATUS_CHECK_MIN_INTERVAL_SECONDS = 30.0
 # takeoff timestamp for the same event won't line up to the second with
 # ours, but should be close.
 HISTORICAL_LEG_MATCH_TOLERANCE_MINUTES = 30.0
+
+# Ad-hoc board discovery (app/services/flight_discovery_service.py): throttles
+# how often any single airport's bbox gets a fresh OpenSky states/all call,
+# so N concurrent users all loading the board with the same unlocked airport
+# don't turn into N OpenSky calls.
+AIRPORT_POLL_MIN_INTERVAL_SECONDS = 45.0

@@ -1,12 +1,18 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app.models.aircraft import AircraftRegistry
 from app.models.airport import Airport
+from app.models.flight import TrackedFlight, TrackedFlightStatus
+from app.worker import thresholds
 from app.worker.opensky_client import StateVector
 from app.worker.tracker import (
+    build_resolution_summary,
     create_tracked_flight,
+    duration_ceiling_breached,
+    landing_grace_period_elapsed,
     looks_like_landing,
     looks_like_recent_takeoff,
+    lost_signal_ceiling_breached,
     resolve_aircraft_type_id,
 )
 
@@ -134,3 +140,80 @@ async def test_create_tracked_flight_leaves_unknown_aircraft_type_null(db, airpo
     state = _state(52.32, 4.78, 300.0, False, vertical_rate=6.0)
     flight = await create_tracked_flight(db, state, airport, datetime.now(timezone.utc))
     assert flight.aircraft_type_id is None
+
+
+def _flight(**overrides) -> TrackedFlight:
+    now = datetime.now(timezone.utc)
+    defaults = dict(
+        icao24="abc123",
+        origin_airport_id=1,
+        first_seen_at=now,
+        first_seen_lat=52.32,
+        first_seen_lon=4.78,
+        last_seen_at=now,
+        last_seen_lat=52.32,
+        last_seen_lon=4.78,
+        last_seen_alt=300.0,
+        status=TrackedFlightStatus.AIRBORNE_OPEN,
+        landing_suspected_at=None,
+    )
+    defaults.update(overrides)
+    return TrackedFlight(**defaults)
+
+
+def test_build_resolution_summary_shape():
+    flight = _flight(last_seen_lat=1.0, last_seen_lon=2.0, last_seen_alt=300.0, origin_airport_id=42)
+    summary = build_resolution_summary(flight, 12.345)
+    assert summary == {
+        "duration_minutes": 12.3,
+        "last_lat": 1.0,
+        "last_lon": 2.0,
+        "last_alt": 300.0,
+        "origin_airport_id": 42,
+    }
+
+
+def test_duration_ceiling_not_breached_just_under():
+    now = datetime.now(timezone.utc)
+    flight = _flight(first_seen_at=now - timedelta(minutes=thresholds.MAX_FLIGHT_DURATION_CEILING_MINUTES - 1))
+    assert duration_ceiling_breached(flight, now) is False
+
+
+def test_duration_ceiling_breached_just_over():
+    now = datetime.now(timezone.utc)
+    flight = _flight(first_seen_at=now - timedelta(minutes=thresholds.MAX_FLIGHT_DURATION_CEILING_MINUTES + 1))
+    assert duration_ceiling_breached(flight, now) is True
+
+
+def test_lost_signal_ceiling_not_breached_just_under():
+    now = datetime.now(timezone.utc)
+    flight = _flight(last_seen_at=now - timedelta(minutes=thresholds.LOST_SIGNAL_CEILING_MINUTES - 1))
+    assert lost_signal_ceiling_breached(flight, now) is False
+
+
+def test_lost_signal_ceiling_breached_just_over():
+    now = datetime.now(timezone.utc)
+    flight = _flight(last_seen_at=now - timedelta(minutes=thresholds.LOST_SIGNAL_CEILING_MINUTES + 1))
+    assert lost_signal_ceiling_breached(flight, now) is True
+
+
+def test_landing_grace_period_not_elapsed_without_landing_suspected_at():
+    now = datetime.now(timezone.utc)
+    flight = _flight(landing_suspected_at=None)
+    assert landing_grace_period_elapsed(flight, now) is False
+
+
+def test_landing_grace_period_not_elapsed_just_under():
+    now = datetime.now(timezone.utc)
+    flight = _flight(
+        landing_suspected_at=now - timedelta(minutes=thresholds.LANDING_GRACE_PERIOD_MINUTES - 1)
+    )
+    assert landing_grace_period_elapsed(flight, now) is False
+
+
+def test_landing_grace_period_elapsed_at_boundary():
+    now = datetime.now(timezone.utc)
+    flight = _flight(
+        landing_suspected_at=now - timedelta(minutes=thresholds.LANDING_GRACE_PERIOD_MINUTES)
+    )
+    assert landing_grace_period_elapsed(flight, now) is True

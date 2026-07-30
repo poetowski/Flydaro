@@ -13,6 +13,7 @@ class RentalStatus(str, enum.Enum):
     IN_PROGRESS = "IN_PROGRESS"
     RESOLVING = "RESOLVING"
     RESOLVED = "RESOLVED"
+    CLAIMED = "CLAIMED"
 
 
 class Rental(Base):
@@ -41,3 +42,4 @@ class Rental(Base):
     settlement_credits: Mapped[int | None] = mapped_column(nullable=True)
     settlement_breakdown: Mapped[dict | None] = mapped_column(JsonVariant, nullable=True)
     resolution_reason: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    claimed_at: Mapped[datetime | None] = mapped_column(nullable=True)

@@ -4,12 +4,15 @@ import pytest
 
 from app.core.exceptions import (
     CapacityClosedError,
+    ConflictError,
     InsufficientFundsError,
     LicenseRequiredError,
     NotFoundError,
+    RentalNotResolvedError,
 )
 from app.models.rental import RentalStatus
 from app.models.flight import TrackedFlightStatus
+from app.models.user import User
 from app.services import rental_service
 from app.services.settlement_service import LANDED_REASON, LOST_SIGNAL_REASON
 from app.services.wallet_service import apply_ledger_entry, get_balance
@@ -100,10 +103,13 @@ async def test_landing_suspected_then_rollback_returns_rental_to_in_progress(db,
     assert refreshed.status == RentalStatus.IN_PROGRESS
 
 
-async def test_resolve_tracked_flight_settles_and_credits_wallet(db, user, open_flight, item_type):
+async def test_resolve_tracked_flight_computes_settlement_but_does_not_credit_wallet(
+    db, user, open_flight, item_type
+):
     await _fund(db, user)
     rental = await rental_service.create_rental(db, user.id, open_flight.id, item_type.id, 300)
     await rental_service.lock_capacity(db, open_flight)
+    balance_after_fee = await get_balance(db, user.id)
 
     resolved_at = open_flight.first_seen_at + timedelta(minutes=30)
     await rental_service.resolve_tracked_flight(
@@ -118,8 +124,8 @@ async def test_resolve_tracked_flight_settles_and_credits_wallet(db, user, open_
     refreshed = await rental_service.get_rental_for_user(db, user.id, rental.id)
     assert refreshed.status == RentalStatus.RESOLVED
     assert refreshed.settlement_credits == round(300 * 1.2 * 1.10)  # <60min bucket * item multiplier
-    # balance = 2000 - 300 rental fee + settlement
-    assert await get_balance(db, user.id) == 2000 - 300 + refreshed.settlement_credits
+    # Reward computed and stored, but NOT credited yet -- claim_rental() does that.
+    assert await get_balance(db, user.id) == balance_after_fee
 
 
 async def test_resolve_tracked_flight_fallback_pays_less_than_clean_landing(db, user, open_flight, item_type):
@@ -140,3 +146,57 @@ async def test_resolve_tracked_flight_fallback_pays_less_than_clean_landing(db, 
     refreshed = await rental_service.get_rental_for_user(db, user.id, rental.id)
     assert refreshed.resolution_reason == LOST_SIGNAL_REASON
     assert refreshed.settlement_credits < round(300 * 1.2 * 1.10)
+
+
+async def test_claim_rental_credits_wallet_and_marks_claimed(db, user, open_flight, item_type):
+    await _fund(db, user)
+    rental = await rental_service.create_rental(db, user.id, open_flight.id, item_type.id, 300)
+    await rental_service.lock_capacity(db, open_flight)
+    balance_before_claim = await get_balance(db, user.id)
+
+    resolved_at = open_flight.first_seen_at + timedelta(minutes=30)
+    await rental_service.resolve_tracked_flight(
+        db, open_flight, TrackedFlightStatus.RESOLVED_LANDED, LANDED_REASON, {}, resolved_at=resolved_at
+    )
+
+    claimed = await rental_service.claim_rental(db, user.id, rental.id)
+
+    assert claimed.status == RentalStatus.CLAIMED
+    assert claimed.claimed_at is not None
+    assert await get_balance(db, user.id) == balance_before_claim + claimed.settlement_credits
+
+
+async def test_claim_rental_twice_raises_conflict(db, user, open_flight, item_type):
+    await _fund(db, user)
+    rental = await rental_service.create_rental(db, user.id, open_flight.id, item_type.id, 300)
+    await rental_service.lock_capacity(db, open_flight)
+    resolved_at = open_flight.first_seen_at + timedelta(minutes=30)
+    await rental_service.resolve_tracked_flight(
+        db, open_flight, TrackedFlightStatus.RESOLVED_LANDED, LANDED_REASON, {}, resolved_at=resolved_at
+    )
+    await rental_service.claim_rental(db, user.id, rental.id)
+
+    with pytest.raises(ConflictError):
+        await rental_service.claim_rental(db, user.id, rental.id)
+
+
+async def test_claim_rental_before_resolved_raises(db, user, open_flight, item_type):
+    await _fund(db, user)
+    rental = await rental_service.create_rental(db, user.id, open_flight.id, item_type.id, 300)
+
+    with pytest.raises(RentalNotResolvedError):
+        await rental_service.claim_rental(db, user.id, rental.id)
+
+
+async def test_claim_rental_for_other_users_rental_raises_not_found(
+    db, user, open_flight, item_type
+):
+    await _fund(db, user)
+    rental = await rental_service.create_rental(db, user.id, open_flight.id, item_type.id, 300)
+
+    other_user = User(email="other@example.com", password_hash="x", display_name="Other")
+    db.add(other_user)
+    await db.flush()
+
+    with pytest.raises(NotFoundError):
+        await rental_service.claim_rental(db, other_user.id, rental.id)

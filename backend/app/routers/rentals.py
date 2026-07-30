@@ -1,11 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.dependencies import get_opensky_client
 from app.core.exceptions import (
     CapacityClosedError,
+    ConflictError,
     InsufficientFundsError,
     LicenseRequiredError,
     NotFoundError,
+    RentalNotResolvedError,
 )
 from app.core.security import get_current_user
 from app.db.session import get_db
@@ -18,10 +21,6 @@ from app.services import flight_status_service, rental_service
 from app.worker.opensky_client import OpenSkyClient
 
 router = APIRouter(prefix="/rentals", tags=["rentals"])
-
-
-def get_opensky_client(request: Request) -> OpenSkyClient:
-    return request.app.state.opensky_client
 
 
 async def _refresh_flights_for(db: AsyncSession, client: OpenSkyClient, rentals: list[Rental]) -> None:
@@ -106,4 +105,20 @@ async def get_rental(
     except NotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     await _refresh_flights_for(db, client, [rental])
+    return rental
+
+
+@router.post("/{rental_id}/claim", response_model=RentalOut)
+async def claim_rental(
+    rental_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Rental:
+    try:
+        rental = await rental_service.claim_rental(db, current_user.id, rental_id)
+    except NotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except (RentalNotResolvedError, ConflictError) as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    await db.commit()
     return rental

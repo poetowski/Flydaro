@@ -5,6 +5,7 @@ from app.models.rental import RentalStatus
 from app.services import flight_status_service, rental_service
 from app.services.wallet_service import apply_ledger_entry
 from app.models.wallet import LedgerReason
+from app.worker import thresholds
 from app.worker.opensky_client import StateVector
 
 
@@ -145,3 +146,79 @@ async def test_refresh_noop_on_already_resolved_flight(db, open_flight, airport)
     await flight_status_service.refresh_flight_status(db, client, open_flight, airport)
 
     assert client.live_state_calls == 0
+
+
+async def test_refresh_live_airborne_still_resolves_timeout_past_duration_ceiling(
+    db, open_flight, airport
+):
+    open_flight.first_seen_at = datetime.now(timezone.utc) - timedelta(
+        minutes=thresholds.MAX_FLIGHT_DURATION_CEILING_MINUTES + 1
+    )
+    await db.flush()
+
+    client = FakeOpenSkyClient(live_state=_airborne_state(on_ground=False))
+    await flight_status_service.refresh_flight_status(db, client, open_flight, airport)
+
+    assert open_flight.status == TrackedFlightStatus.RESOLVED_TIMEOUT
+
+
+async def test_refresh_no_confirmation_resolves_timeout_past_duration_ceiling(
+    db, open_flight, airport
+):
+    open_flight.first_seen_at = datetime.now(timezone.utc) - timedelta(
+        minutes=thresholds.MAX_FLIGHT_DURATION_CEILING_MINUTES + 1
+    )
+    await db.flush()
+
+    client = FakeOpenSkyClient(live_state=None, historical_legs=[])
+    await flight_status_service.refresh_flight_status(db, client, open_flight, airport)
+
+    assert open_flight.status == TrackedFlightStatus.RESOLVED_TIMEOUT
+
+
+async def test_refresh_no_confirmation_resolves_lost_signal_past_ceiling(db, open_flight, airport):
+    open_flight.last_seen_at = datetime.now(timezone.utc) - timedelta(
+        minutes=thresholds.LOST_SIGNAL_CEILING_MINUTES + 1
+    )
+    await db.flush()
+
+    client = FakeOpenSkyClient(live_state=None, historical_legs=[])
+    await flight_status_service.refresh_flight_status(db, client, open_flight, airport)
+
+    assert open_flight.status == TrackedFlightStatus.RESOLVED_LOST_SIGNAL
+
+
+async def test_refresh_live_landing_wins_over_breached_duration_ceiling(db, open_flight, airport):
+    open_flight.first_seen_at = datetime.now(timezone.utc) - timedelta(
+        minutes=thresholds.MAX_FLIGHT_DURATION_CEILING_MINUTES + 1
+    )
+    await db.flush()
+
+    client = FakeOpenSkyClient(live_state=_airborne_state(on_ground=True))
+    await flight_status_service.refresh_flight_status(db, client, open_flight, airport)
+
+    assert open_flight.status == TrackedFlightStatus.RESOLVED_LANDED
+
+
+async def test_refresh_historical_landing_wins_over_breached_duration_ceiling(
+    db, open_flight, airport
+):
+    open_flight.first_seen_at = datetime.now(timezone.utc) - timedelta(
+        minutes=thresholds.MAX_FLIGHT_DURATION_CEILING_MINUTES + 1
+    )
+    await db.flush()
+
+    first_seen_ts = open_flight.first_seen_at.timestamp()
+    legs = [
+        {
+            "icao24": open_flight.icao24,
+            "firstSeen": first_seen_ts,
+            "estDepartureAirport": airport.icao4,
+            "lastSeen": first_seen_ts + 60 * 60,
+            "estArrivalAirport": "EDDF",
+        }
+    ]
+    client = FakeOpenSkyClient(live_state=None, historical_legs=legs)
+    await flight_status_service.refresh_flight_status(db, client, open_flight, airport)
+
+    assert open_flight.status == TrackedFlightStatus.RESOLVED_LANDED

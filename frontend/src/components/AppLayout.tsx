@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { getCurrentUser } from "../api/auth";
 import { getWallet } from "../api/wallet";
 import { useAuth } from "../auth/AuthContext";
 
@@ -12,7 +11,6 @@ export function AppLayout() {
     queryFn: getWallet,
     refetchInterval: 15000,
   });
-  const { data: currentUser } = useQuery({ queryKey: ["currentUser"], queryFn: getCurrentUser });
 
   async function handleLogout() {
     await logout();
@@ -30,7 +28,6 @@ export function AppLayout() {
           <NavLink to="/flights">Flight Board</NavLink>
           <NavLink to="/rentals">Rental History</NavLink>
           <NavLink to="/licenses">Licenses</NavLink>
-          {currentUser?.is_admin && <NavLink to="/admin">Admin</NavLink>}
         </nav>
         <div className="header-right">
           <span className="wallet-badge">{wallet ? `${wallet.balance_credits} cr` : "..."}</span>

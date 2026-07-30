@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import Float, String
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -20,9 +22,15 @@ class Airport(Base):
     bbox_lamax: Mapped[float] = mapped_column(Float, nullable=False)
     bbox_lomax: Mapped[float] = mapped_column(Float, nullable=False)
     is_starter: Mapped[bool] = mapped_column(default=False, nullable=False)
-    # Poller-scheduling flag only ("does the worker watch this bbox") --
-    # NOT a per-user access check. Flipped True the moment any player unlocks
-    # a non-starter airport. Per-user access is is_starter OR a row in
-    # user_airport_unlocks; see app/services/license_service.py.
+    # Historical unlock-scoping flag ("has any player unlocked this airport
+    # yet"), flipped True by license_service.unlock_airport(). No longer
+    # drives a background scheduler (there is none) -- nothing currently
+    # gates on this column, it's informational only. Per-user access is
+    # is_starter OR a row in user_airport_unlocks; see
+    # app/services/license_service.py.
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
     unlock_cost_credits: Mapped[int] = mapped_column(nullable=False, default=0)
+    # Throttle for ad-hoc board discovery (app/services/flight_discovery_service.py)
+    # -- avoids N concurrent users loading the board for this airport each
+    # triggering a fresh OpenSky bbox call.
+    last_polled_at: Mapped[datetime | None] = mapped_column(nullable=True)

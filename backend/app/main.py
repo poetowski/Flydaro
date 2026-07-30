@@ -12,7 +12,6 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import get_settings
 from app.routers import (
-    admin,
     aircraft_types,
     airports,
     auth,
@@ -23,7 +22,6 @@ from app.routers import (
     wallet,
 )
 from app.worker.opensky_client import OpenSkyClient
-from app.worker.poller import run_forever
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -67,23 +65,17 @@ async def lifespan(app: FastAPI):
     if not settings.opensky_client_id or not settings.opensky_client_secret:
         logger.warning(
             "OPENSKY_CLIENT_ID/OPENSKY_CLIENT_SECRET are not set -- OpenSky "
-            "calls (poller and on-demand rental status checks) will fail."
+            "calls (flight-board discovery and on-demand rental status "
+            "checks) will fail."
         )
 
-    # Shared regardless of run_poller_in_api: the on-demand landing check
-    # in /rentals (app/services/flight_status_service.py) needs a client
-    # even on deployments where the background poller loop is disabled.
+    # No background task: OpenSky is only ever called ad hoc, from within a
+    # request (see flight_discovery_service.py / flight_status_service.py).
     client = OpenSkyClient()
     app.state.opensky_client = client
 
-    poller_task = None
-    if settings.run_poller_in_api:
-        poller_task = asyncio.create_task(run_forever(client, settings.poller_interval_seconds))
-
     yield
 
-    if poller_task is not None:
-        poller_task.cancel()
     await client.aclose()
 
 
@@ -105,7 +97,6 @@ app.include_router(aircraft_types.router)
 app.include_router(licenses.router)
 app.include_router(flights.router)
 app.include_router(rentals.router)
-app.include_router(admin.router)
 
 
 @app.get("/health")

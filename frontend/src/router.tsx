@@ -3,7 +3,6 @@ import { RequireAuth } from "./auth/RequireAuth";
 import { AppLayout } from "./components/AppLayout";
 import { RentalHistoryPage } from "./routes/RentalHistoryPage";
 import { RentalPlacementPage } from "./routes/RentalPlacementPage";
-import { AdminPage } from "./routes/AdminPage";
 import { DashboardPage } from "./routes/DashboardPage";
 import { FlightBoardPage } from "./routes/FlightBoardPage";
 import { LicensesPage } from "./routes/LicensesPage";
@@ -24,7 +23,6 @@ export const router = createBrowserRouter([
           { path: "/flights/:flightId/rent", element: <RentalPlacementPage /> },
           { path: "/rentals", element: <RentalHistoryPage /> },
           { path: "/licenses", element: <LicensesPage /> },
-          { path: "/admin", element: <AdminPage /> },
         ],
       },
     ],

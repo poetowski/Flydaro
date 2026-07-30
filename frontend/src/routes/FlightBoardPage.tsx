@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { listAircraftTypes } from "../api/aircraftTypes";
@@ -12,6 +12,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export function FlightBoardPage() {
+  const queryClient = useQueryClient();
   const [airportId, setAirportId] = useState<number | "all">("all");
   const [aircraftTypeId, setAircraftTypeId] = useState<number | "all">("all");
 
@@ -20,14 +21,17 @@ export function FlightBoardPage() {
     queryKey: ["aircraft-types"],
     queryFn: listAircraftTypes,
   });
-  const { data: flights, isLoading } = useQuery({
-    queryKey: ["flights", "board", airportId, aircraftTypeId],
+  const boardQueryKey = ["flights", "board", airportId, aircraftTypeId];
+  const { data: flights, isLoading, isFetching } = useQuery({
+    queryKey: boardQueryKey,
     queryFn: () =>
       getFlightBoard(
         airportId === "all" ? undefined : airportId,
         aircraftTypeId === "all" ? undefined : aircraftTypeId,
       ),
-    refetchInterval: 12000,
+    // No auto-refetch interval: OpenSky is only called ad hoc, when this
+    // request is actually made -- loading the page, changing a filter, or
+    // pressing Refresh below, not on a timer from every open tab.
   });
 
   const unlockedAirports = airports?.filter((airport) => airport.unlocked) ?? [];
@@ -72,6 +76,14 @@ export function FlightBoardPage() {
             ))}
           </select>
         </label>
+
+        <button
+          className="button"
+          disabled={isFetching}
+          onClick={() => queryClient.invalidateQueries({ queryKey: boardQueryKey })}
+        >
+          {isFetching ? "Refreshing..." : "Refresh"}
+        </button>
       </div>
 
       <p className="muted">

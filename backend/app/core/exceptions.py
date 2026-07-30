@@ -24,3 +24,7 @@ class CapacityClosedError(DomainError):
 
 class LicenseRequiredError(DomainError):
     pass
+
+
+class RentalNotResolvedError(DomainError):
+    pass

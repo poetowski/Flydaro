@@ -22,3 +22,4 @@ class RentalOut(BaseModel):
     settlement_credits: int | None
     settlement_breakdown: dict | None
     resolution_reason: str | None
+    claimed_at: datetime | None

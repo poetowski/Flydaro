@@ -1,11 +1,15 @@
-import { useQuery } from "@tanstack/react-query";
-import { listMyRentals } from "../api/rentals";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { claimRental, listMyRentals } from "../api/rentals";
 
 export function RentalHistoryPage() {
+  const queryClient = useQueryClient();
   const { data: rentals, isLoading } = useQuery({
     queryKey: ["rentals", "mine"],
     queryFn: () => listMyRentals(),
-    refetchInterval: 15000,
+  });
+  const claimMutation = useMutation({
+    mutationFn: claimRental,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["rentals", "mine"] }),
   });
 
   return (
@@ -27,6 +31,19 @@ export function RentalHistoryPage() {
             {rental.status === "RESOLVED" && (
               <div>
                 Settlement: {rental.settlement_credits} credits
+                {rental.resolution_reason && ` (${rental.resolution_reason})`}
+                <button
+                  className="button"
+                  disabled={claimMutation.isPending}
+                  onClick={() => claimMutation.mutate(rental.id)}
+                >
+                  Claim {rental.settlement_credits} credits
+                </button>
+              </div>
+            )}
+            {rental.status === "CLAIMED" && (
+              <div>
+                Claimed: {rental.settlement_credits} credits
                 {rental.resolution_reason && ` (${rental.resolution_reason})`}
               </div>
             )}

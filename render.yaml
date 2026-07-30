@@ -1,10 +1,9 @@
 # Render Blueprint for Flydaro: https://render.com/docs/blueprint-spec
 #
 # Single service: the FastAPI app serves the API AND the built frontend
-# (mounted as static files with an SPA fallback, see app/main.py), runs the
-# OpenSky poller as an in-process background task, and runs Alembic
-# migrations on startup. No Background Worker, no separate Static Site, no
-# preDeployCommand -- fits entirely on Render's free plan.
+# (mounted as static files with an SPA fallback, see app/main.py), and runs
+# Alembic migrations on startup. No Background Worker, no separate Static
+# Site, no preDeployCommand -- fits entirely on Render's free plan.
 #
 # Postgres itself is NOT provisioned here -- it lives in Neon (see README's
 # Deployment section). DATABASE_URL / DATABASE_URL_DIRECT are `sync: false`
@@ -16,11 +15,15 @@
 # understands. Replace both with `ssl=require` before pasting into
 # DATABASE_URL / DATABASE_URL_DIRECT (see README).
 #
-# Trade-off of one service: a free web service spins down after 15 min idle
-# and cold-starts (~1 min) on the next request -- that's now true of the
-# frontend's first load too, not just the API, and the poller pauses while
-# asleep. Ping /health periodically from a free external uptime service if
-# you want it to stay warmer.
+# No background task of any kind: OpenSky is only ever called ad hoc, from
+# within a request (flight-board discovery in GET /flights/board, on-demand
+# rental status/landing confirmation in GET /rentals/mine and
+# GET /rentals/{id} -- see app/services/flight_discovery_service.py and
+# flight_status_service.py). A free web service still spins down after
+# 15 min idle and cold-starts (~1 min) on the next request, but there is no
+# continuously-running task for that to interrupt -- a cold start just adds
+# latency to whichever request wakes the service, it never causes missed
+# flights or stuck rentals the way a background poller would have.
 
 services:
   - name: flydaro
@@ -48,8 +51,6 @@ services:
         sync: false
       - key: RUN_MIGRATIONS_ON_STARTUP
         value: "true"
-      - key: RUN_POLLER_IN_API
-        value: "true"
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_ALGORITHM
@@ -69,32 +70,6 @@ services:
         sync: false
       - key: OPENSKY_CLIENT_SECRET
         sync: false
-      - key: POLLER_INTERVAL_SECONDS
-        value: "60"
       # Empty = relative fetch() URLs, correct for same-origin serving.
       - key: VITE_API_BASE_URL
         value: ""
-
-  # --- Paid upgrade path: dedicated always-on poller -------------------------
-  # Add this service, remove RUN_POLLER_IN_API from flydaro above, and
-  # add `preDeployCommand: alembic upgrade head` to flydaro (removing
-  # RUN_MIGRATIONS_ON_STARTUP) once you're on a paid plan. Needs its own
-  # DATABASE_URL_DIRECT/OPENSKY_CLIENT_ID/OPENSKY_CLIENT_SECRET filled in too.
-  #
-  # - name: flydaro-poller
-  #   type: worker
-  #   runtime: python
-  #   rootDir: backend
-  #   buildCommand: pip install -e .
-  #   startCommand: python -m app.worker.main
-  #   envVars:
-  #     - key: PYTHON_VERSION
-  #       value: 3.11.10
-  #     - key: DATABASE_URL_DIRECT
-  #       sync: false
-  #     - key: OPENSKY_CLIENT_ID
-  #       sync: false
-  #     - key: OPENSKY_CLIENT_SECRET
-  #       sync: false
-  #     - key: POLLER_INTERVAL_SECONDS
-  #       value: "60"

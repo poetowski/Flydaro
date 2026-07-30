@@ -2,12 +2,15 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.dependencies import get_opensky_client
 from app.core.security import get_current_user
 from app.db.session import get_db
+from app.models.airport import Airport
 from app.models.flight import TrackedFlight, TrackedFlightStatus
 from app.models.user import User
 from app.schemas.flight import TrackedFlightOut
-from app.services import license_service
+from app.services import flight_discovery_service, license_service
+from app.worker.opensky_client import OpenSkyClient
 
 router = APIRouter(prefix="/flights", tags=["flights"])
 
@@ -25,9 +28,20 @@ async def get_flight_board(
     status_filter: str | None = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    client: OpenSkyClient = Depends(get_opensky_client),
 ) -> list[TrackedFlight]:
     unlocked_airport_ids = await license_service.get_unlocked_airport_ids(db, current_user.id)
     unlocked_type_ids = await license_service.get_unlocked_aircraft_type_ids(db, current_user.id)
+
+    # Ad-hoc discovery: no background poller exists, so this request itself
+    # is what looks for new flights and advances/resolves existing ones at
+    # the airports actually in scope, before the DB query below reads back
+    # the (now possibly updated) result set.
+    scope_airport_ids = unlocked_airport_ids if airport_id is None else (unlocked_airport_ids & {airport_id})
+    if scope_airport_ids:
+        airports = list(await db.scalars(select(Airport).where(Airport.id.in_(scope_airport_ids))))
+        await flight_discovery_service.refresh_board_for_airports(db, client, airports)
+        await db.commit()
 
     # Floor, not just a UI convenience: applied unconditionally, regardless
     # of whether airport_id/aircraft_type_id narrow further below, so a user

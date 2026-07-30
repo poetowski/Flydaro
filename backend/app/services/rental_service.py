@@ -3,7 +3,13 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import CapacityClosedError, LicenseRequiredError, NotFoundError
+from app.core.exceptions import (
+    CapacityClosedError,
+    ConflictError,
+    LicenseRequiredError,
+    NotFoundError,
+    RentalNotResolvedError,
+)
 from app.models.airport import Airport
 from app.models.flight import TrackedFlight, TrackedFlightStatus
 from app.models.item_type import ItemType
@@ -126,8 +132,11 @@ async def resolve_tracked_flight(
     resolution_summary: dict,
     resolved_at: datetime | None = None,
 ) -> None:
-    """Terminal transition. Settles every rental still open on this flight,
-    regardless of whether it went through RESOLVING or hit a ceiling directly.
+    """Terminal transition. Computes and stores each rental's settlement
+    (still open on this flight, regardless of whether it went through
+    RESOLVING or hit a ceiling directly) but does NOT credit the wallet --
+    the reward is claimable, not automatic. See claim_rental() for the
+    explicit action that actually credits it.
     """
     resolved_at = resolved_at or datetime.now(timezone.utc)
     flight.status = status
@@ -160,8 +169,22 @@ async def resolve_tracked_flight(
         rental.settlement_breakdown = breakdown
         rental.resolution_reason = resolution_reason
 
-        await apply_ledger_entry(
-            db, rental.user_id, settlement_credits, LedgerReason.SETTLEMENT, related_rental_id=rental.id
-        )
-
     await db.flush()
+
+
+async def claim_rental(db: AsyncSession, user_id: int, rental_id: int) -> Rental:
+    """The only place a rental's reward actually reaches the wallet --
+    explicit player action, gated on the flight having already resolved."""
+    rental = await get_rental_for_user(db, user_id, rental_id)
+    if rental.status == RentalStatus.CLAIMED:
+        raise ConflictError("Reward already claimed")
+    if rental.status != RentalStatus.RESOLVED:
+        raise RentalNotResolvedError("This rental's flight has not resolved yet")
+
+    await apply_ledger_entry(
+        db, user_id, rental.settlement_credits, LedgerReason.SETTLEMENT, related_rental_id=rental.id
+    )
+    rental.status = RentalStatus.CLAIMED
+    rental.claimed_at = datetime.now(timezone.utc)
+    await db.flush()
+    return rental
