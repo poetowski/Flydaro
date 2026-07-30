@@ -9,8 +9,16 @@ export function LicensesPage() {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
 
-  const { data: airports } = useQuery({ queryKey: ["airports"], queryFn: listAirports });
-  const { data: aircraftFamilies } = useQuery({
+  const {
+    data: airports,
+    isError: airportsIsError,
+    error: airportsError,
+  } = useQuery({ queryKey: ["airports"], queryFn: listAirports });
+  const {
+    data: aircraftFamilies,
+    isError: aircraftFamiliesIsError,
+    error: aircraftFamiliesError,
+  } = useQuery({
     queryKey: ["aircraft-families"],
     queryFn: listAircraftFamilies,
   });
@@ -52,6 +60,12 @@ export function LicensesPage() {
 
       <section className="card">
         <h2>Airport Licenses</h2>
+        {airportsIsError && (
+          <p className="form-error">
+            Could not load airports:{" "}
+            {airportsError instanceof ApiError ? airportsError.message : "unknown error"}
+          </p>
+        )}
         <ul className="license-list">
           {sortedAirports.map((airport: Airport) => (
             <li key={airport.id} className="license-card">
@@ -76,6 +90,12 @@ export function LicensesPage() {
 
       <section className="card">
         <h2>Pilot Licenses</h2>
+        {aircraftFamiliesIsError && (
+          <p className="form-error">
+            Could not load aircraft licenses:{" "}
+            {aircraftFamiliesError instanceof ApiError ? aircraftFamiliesError.message : "unknown error"}
+          </p>
+        )}
         <ul className="license-list">
           {sortedAircraftFamilies.map((family: AircraftFamily) => (
             <li key={family.id} className="license-card">

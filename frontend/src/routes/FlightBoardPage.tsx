@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { listAircraftFamilies } from "../api/aircraftFamilies";
 import { listAircraftTypes } from "../api/aircraftTypes";
 import { listAirports } from "../api/airports";
+import { ApiError } from "../api/client";
 import { getFlightBoard } from "../api/flights";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -17,8 +18,16 @@ export function FlightBoardPage() {
   const [airportId, setAirportId] = useState<number | "all">("all");
   const [aircraftFamilyId, setAircraftFamilyId] = useState<number | "all">("all");
 
-  const { data: airports } = useQuery({ queryKey: ["airports"], queryFn: listAirports });
-  const { data: aircraftFamilies } = useQuery({
+  const {
+    data: airports,
+    isError: airportsIsError,
+    error: airportsError,
+  } = useQuery({ queryKey: ["airports"], queryFn: listAirports });
+  const {
+    data: aircraftFamilies,
+    isError: aircraftFamiliesIsError,
+    error: aircraftFamiliesError,
+  } = useQuery({
     queryKey: ["aircraft-families"],
     queryFn: listAircraftFamilies,
   });
@@ -31,7 +40,13 @@ export function FlightBoardPage() {
     queryFn: listAircraftTypes,
   });
   const boardQueryKey = ["flights", "board", airportId, aircraftFamilyId];
-  const { data: flights, isLoading, isFetching } = useQuery({
+  const {
+    data: flights,
+    isLoading,
+    isFetching,
+    isError: flightsIsError,
+    error: flightsError,
+  } = useQuery({
     queryKey: boardQueryKey,
     queryFn: () =>
       getFlightBoard(
@@ -50,6 +65,18 @@ export function FlightBoardPage() {
   return (
     <div className="page">
       <h1>Flight Board</h1>
+
+      {airportsIsError && (
+        <p className="form-error">
+          Could not load airports: {airportsError instanceof ApiError ? airportsError.message : "unknown error"}
+        </p>
+      )}
+      {aircraftFamiliesIsError && (
+        <p className="form-error">
+          Could not load aircraft families:{" "}
+          {aircraftFamiliesError instanceof ApiError ? aircraftFamiliesError.message : "unknown error"}
+        </p>
+      )}
 
       <div className="board-filters">
         <label className="airport-filter">
@@ -99,8 +126,14 @@ export function FlightBoardPage() {
         Want more airports or planes? Visit <Link to="/licenses">Licenses</Link>.
       </p>
 
+      {flightsIsError && (
+        <p className="form-error">
+          Could not load the flight board:{" "}
+          {flightsError instanceof ApiError ? flightsError.message : "unknown error"}
+        </p>
+      )}
       {isLoading && <p>Loading flights...</p>}
-      {!isLoading && flights?.length === 0 && (
+      {!isLoading && !flightsIsError && flights?.length === 0 && (
         <p>No aircraft currently airborne near your unlocked airports. Check back shortly.</p>
       )}
 
