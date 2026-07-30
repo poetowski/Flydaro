@@ -5,6 +5,8 @@ export interface PollerHeartbeat {
   last_success_at: string | null;
   last_error: string | null;
   credits_remaining: number | null;
+  last_opensky_status: number | null;
+  last_opensky_detail: string | null;
   seconds_since_last_tick: number | null;
   expected_interval_seconds: number;
 }

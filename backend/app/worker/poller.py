@@ -98,6 +98,8 @@ async def run_forever(client: OpenSkyClient, interval_seconds: int) -> None:
                     success=error_message is None,
                     error=error_message,
                     credits_remaining=client.credits_remaining,
+                    opensky_status=client.last_status_code,
+                    opensky_detail=client.last_status_detail,
                 )
                 await heartbeat_db.commit()
         except Exception:

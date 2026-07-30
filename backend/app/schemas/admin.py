@@ -8,6 +8,8 @@ class PollerHeartbeatOut(BaseModel):
     last_success_at: datetime | None
     last_error: str | None
     credits_remaining: int | None
+    last_opensky_status: int | None
+    last_opensky_detail: str | None
     seconds_since_last_tick: float | None
     # Exposed rather than hardcoded on the frontend, so the staleness
     # threshold there always tracks the actually-configured interval

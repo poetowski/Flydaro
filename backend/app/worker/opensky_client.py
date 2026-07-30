@@ -58,6 +58,11 @@ class OpenSkyClient:
         self._access_token: str | None = None
         self._token_expires_at: float = 0.0
         self.credits_remaining: int | None = None
+        # Outcome of the most recent states/all (or token) call attempt --
+        # surfaced on the admin heartbeat so "0 flights" can be told apart
+        # from "OpenSky calls are actually failing/401ing/whatever".
+        self.last_status_code: int | None = None
+        self.last_status_detail: str | None = None
 
     async def aclose(self) -> None:
         await self._http.aclose()
@@ -96,24 +101,41 @@ class OpenSkyClient:
                     "OpenSky credit budget low: %s remaining", self.credits_remaining
                 )
 
+    def _record_call_result(self, status_code: int | None, detail: str | None) -> None:
+        self.last_status_code = status_code
+        self.last_status_detail = detail
+
     async def get_states_in_bbox(
         self, lamin: float, lomin: float, lamax: float, lomax: float
     ) -> list[StateVector]:
-        token = await self._get_valid_token()
+        try:
+            token = await self._get_valid_token()
+        except httpx.HTTPStatusError as exc:
+            self._record_call_result(exc.response.status_code, _response_detail(exc.response))
+            return []
+        except httpx.HTTPError as exc:
+            self._record_call_result(None, f"Token request failed: {exc.__class__.__name__}: {exc}")
+            return []
+
         try:
             response = await self._http.get(
                 f"{settings.opensky_api_base}/states/all",
                 params={"lamin": lamin, "lomin": lomin, "lamax": lamax, "lomax": lomax},
                 headers={"Authorization": f"Bearer {token}"},
             )
-        except httpx.HTTPError:
+        except httpx.HTTPError as exc:
             logger.exception("OpenSky request failed")
+            self._record_call_result(None, f"{exc.__class__.__name__}: {exc}")
             return []
 
         if response.status_code == 401:
             # Token may have been invalidated server-side; force one retry.
             self._access_token = None
-            token = await self._get_valid_token()
+            try:
+                token = await self._get_valid_token()
+            except httpx.HTTPError as exc:
+                self._record_call_result(None, f"Token refresh failed: {exc.__class__.__name__}: {exc}")
+                return []
             response = await self._http.get(
                 f"{settings.opensky_api_base}/states/all",
                 params={"lamin": lamin, "lomin": lomin, "lamax": lamax, "lomax": lomax},
@@ -121,6 +143,9 @@ class OpenSkyClient:
             )
 
         self._update_credit_budget(response)
+        self._record_call_result(
+            response.status_code, None if response.is_success else _response_detail(response)
+        )
 
         if response.status_code == 429:
             logger.warning("OpenSky rate limit hit (429), skipping this tick for this box")
@@ -130,3 +155,8 @@ class OpenSkyClient:
         body = response.json()
         states = body.get("states") or []
         return [StateVector.from_raw(row) for row in states]
+
+
+def _response_detail(response: httpx.Response) -> str:
+    text = response.text.strip()
+    return text[:300] if text else (response.reason_phrase or f"HTTP {response.status_code}")

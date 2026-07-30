@@ -43,6 +43,8 @@ async def get_poller_health(
         last_success_at=heartbeat.last_success_at if heartbeat else None,
         last_error=heartbeat.last_error if heartbeat else None,
         credits_remaining=heartbeat.credits_remaining if heartbeat else None,
+        last_opensky_status=heartbeat.last_opensky_status if heartbeat else None,
+        last_opensky_detail=heartbeat.last_opensky_detail if heartbeat else None,
         seconds_since_last_tick=seconds_since_last_tick,
         expected_interval_seconds=settings.poller_interval_seconds,
     )

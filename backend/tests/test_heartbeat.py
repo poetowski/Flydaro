@@ -33,3 +33,19 @@ async def test_record_tick_success_then_failure_then_success(db):
     assert row.last_error is None
     assert _naive(row.last_success_at) == _naive(t3)
     assert row.credits_remaining == 90
+
+
+async def test_record_tick_stores_opensky_call_result(db):
+    t1 = datetime.now(timezone.utc)
+    await heartbeat.record_tick(
+        db, now=t1, success=False, error="OpenSky 401", opensky_status=401, opensky_detail="Unauthorized"
+    )
+    row = await db.get(PollerHeartbeat, 1)
+    assert row.last_opensky_status == 401
+    assert row.last_opensky_detail == "Unauthorized"
+
+    t2 = t1 + timedelta(seconds=60)
+    await heartbeat.record_tick(db, now=t2, success=True, opensky_status=200, opensky_detail=None)
+    row = await db.get(PollerHeartbeat, 1)
+    assert row.last_opensky_status == 200
+    assert row.last_opensky_detail is None

@@ -71,6 +71,19 @@ export function AdminPage() {
           OpenSky credits remaining:{" "}
           {heartbeat.credits_remaining != null ? heartbeat.credits_remaining : "unknown"}
         </p>
+        <p className="flight-meta">
+          Last OpenSky call:{" "}
+          {heartbeat.last_opensky_status != null ? (
+            <span className={`badge ${heartbeat.last_opensky_status < 400 ? "badge-unlocked" : "badge-danger"}`}>
+              HTTP {heartbeat.last_opensky_status}
+            </span>
+          ) : (
+            "never attempted"
+          )}
+        </p>
+        {heartbeat.last_opensky_detail && (
+          <p className="form-error">OpenSky response: {heartbeat.last_opensky_detail}</p>
+        )}
         <p className="muted">Expected poll interval: {heartbeat.expected_interval_seconds}s</p>
       </section>
 
