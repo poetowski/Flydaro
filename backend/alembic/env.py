@@ -12,7 +12,11 @@ from app.models import *  # noqa: F401,F403  (register all models on Base.metada
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # disable_existing_loggers defaults to True, which would silence every
+    # other logger already configured in the process (e.g. uvicorn's) when
+    # migrations run in-process via RUN_MIGRATIONS_ON_STARTUP, not just when
+    # `alembic upgrade head` runs standalone as its own short-lived process.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 

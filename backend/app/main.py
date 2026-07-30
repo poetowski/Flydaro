@@ -48,7 +48,11 @@ def _run_migrations() -> None:
 async def lifespan(app: FastAPI):
     if settings.run_migrations_on_startup:
         logger.info("Running migrations on startup")
-        await asyncio.to_thread(_run_migrations)
+        try:
+            await asyncio.to_thread(_run_migrations)
+        except Exception:
+            logger.exception("Migrations failed on startup")
+            raise
 
     poller_task = None
     client = None
