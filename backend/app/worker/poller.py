@@ -9,7 +9,7 @@ from app.db.session import DirectSessionLocal
 from app.models.airport import Airport
 from app.models.flight import TrackedFlightStatus
 from app.services import rental_service
-from app.worker import resolver, thresholds, tracker
+from app.worker import heartbeat, resolver, thresholds, tracker
 from app.worker.opensky_client import OpenSkyClient
 
 logger = logging.getLogger(__name__)
@@ -76,9 +76,32 @@ async def run_forever(client: OpenSkyClient, interval_seconds: int) -> None:
     process and, on deployments without a separate worker service, an
     in-process background task started from the API's lifespan."""
     while True:
+        now = datetime.now(timezone.utc)
+        error_message: str | None = None
         try:
             async with DirectSessionLocal() as db:
                 await run_tick(db, client)
-        except Exception:
+        except Exception as exc:
             logger.exception("Poller tick failed")
+            error_message = str(exc) or exc.__class__.__name__
+
+        # Deliberately a SEPARATE session/transaction from run_tick's `db`
+        # above. If run_tick failed because ITS session/connection is
+        # broken (e.g. a Neon connectivity blip mid-transaction), that
+        # session is left needing a rollback before reuse -- a brand new
+        # DirectSessionLocal() sidesteps that entirely.
+        try:
+            async with DirectSessionLocal() as heartbeat_db:
+                await heartbeat.record_tick(
+                    heartbeat_db,
+                    now=now,
+                    success=error_message is None,
+                    error=error_message,
+                    credits_remaining=client.credits_remaining,
+                )
+                await heartbeat_db.commit()
+        except Exception:
+            # A heartbeat-write failure must never take down the poll loop.
+            logger.exception("Failed to record poller heartbeat")
+
         await asyncio.sleep(interval_seconds)

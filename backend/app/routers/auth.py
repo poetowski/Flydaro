@@ -2,8 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ConflictError, InvalidCredentialsError
+from app.core.security import get_current_user
 from app.db.session import get_db
+from app.models.user import User
 from app.schemas.auth import (
+    CurrentUserOut,
     LoginRequest,
     LogoutRequest,
     RefreshRequest,
@@ -54,3 +57,8 @@ async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)) -> T
 async def logout(body: LogoutRequest, db: AsyncSession = Depends(get_db)) -> None:
     await auth_service.logout(db, body.refresh_token)
     await db.commit()
+
+
+@router.get("/me", response_model=CurrentUserOut)
+async def get_me(current_user: User = Depends(get_current_user)) -> User:
+    return current_user

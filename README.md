@@ -187,9 +187,30 @@ just revert the SPA mount in `app/main.py` and give the static site its own
   win-streak bonuses, tunable config instead of hardcoded constants.
 - **Richer resolution**: delay/diversion detection using OpenSky's historical
   batch data to build expected-duration baselines.
-- **Admin/ops tooling**: poller health dashboard, manual force-resolve for
-  stuck flights.
+- **Admin/ops tooling**: poller health dashboard -- done, see below. Still
+  open: manual force-resolve for stuck flights, wallet adjustments.
 
 Landing/takeoff detection thresholds (`backend/app/worker/thresholds.py`) are
 starting guesses -- expect to tune them from real poller logs once traffic
 against the actual starter airports has been observed.
+
+## Admin: poller health
+
+`GET /admin/poller-health` (and `/admin` in the frontend) shows whether the
+OpenSky poller is actually running: last tick time, last successful tick,
+last error, remaining OpenSky credit budget, tracked-flight counts by
+status, the 10 most recent detections, and currently-active airports. This
+is the only persisted signal of poller liveness -- everything else about
+the poller is only ever visible in process logs.
+
+There's no self-service way to become an admin (by design). After signing
+up normally, grant yourself access directly against the database:
+
+```sql
+UPDATE users SET is_admin = true WHERE email = 'you@example.com';
+```
+
+The `Admin` nav link only appears for admins, but the actual security
+boundary is server-side (`get_current_admin_user` in
+`backend/app/core/security.py`) -- a non-admin visiting `/admin` directly
+gets a 403.

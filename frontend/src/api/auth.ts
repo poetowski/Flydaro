@@ -40,3 +40,12 @@ export async function logout(): Promise<void> {
   }
   clearTokens();
 }
+
+export interface CurrentUser {
+  id: number;
+  email: string;
+  display_name: string;
+  is_admin: boolean;
+}
+
+export const getCurrentUser = (): Promise<CurrentUser> => apiRequest<CurrentUser>("/auth/me");

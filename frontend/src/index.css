@@ -328,3 +328,8 @@ button:disabled {
   background: var(--success);
   color: #fff;
 }
+
+.badge-danger {
+  background: var(--danger);
+  color: #fff;
+}

@@ -11,7 +11,17 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import get_settings
-from app.routers import aircraft_types, airports, auth, flights, item_types, licenses, rentals, wallet
+from app.routers import (
+    admin,
+    aircraft_types,
+    airports,
+    auth,
+    flights,
+    item_types,
+    licenses,
+    rentals,
+    wallet,
+)
 from app.worker.opensky_client import OpenSkyClient
 from app.worker.poller import run_forever
 
@@ -91,6 +101,7 @@ app.include_router(aircraft_types.router)
 app.include_router(licenses.router)
 app.include_router(flights.router)
 app.include_router(rentals.router)
+app.include_router(admin.router)
 
 
 @app.get("/health")
