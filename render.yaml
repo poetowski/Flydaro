@@ -23,7 +23,7 @@
 # you want it to stay warmer.
 
 services:
-  - name: flydaro-api
+  - name: flydaro
     type: web
     runtime: python
     rootDir: backend
@@ -76,8 +76,8 @@ services:
         value: ""
 
   # --- Paid upgrade path: dedicated always-on poller -------------------------
-  # Add this service, remove RUN_POLLER_IN_API from flydaro-api above, and
-  # add `preDeployCommand: alembic upgrade head` to flydaro-api (removing
+  # Add this service, remove RUN_POLLER_IN_API from flydaro above, and
+  # add `preDeployCommand: alembic upgrade head` to flydaro (removing
   # RUN_MIGRATIONS_ON_STARTUP) once you're on a paid plan. Needs its own
   # DATABASE_URL_DIRECT/OPENSKY_CLIENT_ID/OPENSKY_CLIENT_SECRET filled in too.
   #

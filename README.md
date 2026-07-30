@@ -113,7 +113,7 @@ timeout/lost-signal/landing-confirmation sweeps.
 ## Deployment (Neon + Render)
 
 `render.yaml` at the repo root is a [Render Blueprint](https://render.com/docs/blueprint-spec)
-defining a **single** service, `flydaro-api`. Its build step builds the
+defining a **single** service, `flydaro`. Its build step builds the
 frontend (`frontend/dist`) before installing the Python package; at
 runtime, `app/main.py` mounts that build as static files (with an SPA
 fallback for client-side routing) alongside the JSON API, and runs the
@@ -151,7 +151,7 @@ will fail outright.
 ### 2. Render
 
 In the Render dashboard, **New > Blueprint**, point it at this repo. It
-prompts for every `sync: false` env var on `flydaro-api`: `DATABASE_URL`,
+prompts for every `sync: false` env var on `flydaro`: `DATABASE_URL`,
 `DATABASE_URL_DIRECT`, `OPENSKY_CLIENT_ID`, `OPENSKY_CLIENT_SECRET`. No
 mocked/synthetic flight data anywhere in this codebase -- without valid
 OpenSky credentials the service still runs, but every poll fails and the
@@ -165,8 +165,8 @@ touching -- same-origin serving means CORS is basically moot in production.
 Once on a paid plan, you can split the poller back out into a dedicated,
 always-on Background Worker instead of the in-process one: uncomment the
 `flydaro-poller` block in `render.yaml`, remove `RUN_POLLER_IN_API` from
-`flydaro-api`, and replace `RUN_MIGRATIONS_ON_STARTUP` with
-`preDeployCommand: alembic upgrade head` on `flydaro-api` (this is the
+`flydaro`, and replace `RUN_MIGRATIONS_ON_STARTUP` with
+`preDeployCommand: alembic upgrade head` on `flydaro` (this is the
 *only* service that should run migrations, to avoid it racing the worker).
 The worker needs its own
 `DATABASE_URL_DIRECT`/`OPENSKY_CLIENT_ID`/`OPENSKY_CLIENT_SECRET` filled in.
