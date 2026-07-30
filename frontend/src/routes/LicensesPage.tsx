@@ -15,6 +15,15 @@ export function LicensesPage() {
     queryFn: listAircraftTypes,
   });
 
+  // Unlocked first, then locked -- stable sort so a freshly-unlocked item
+  // just moves into the unlocked group instead of the whole list reordering.
+  const sortedAirports = [...(airports ?? [])].sort(
+    (a, b) => Number(b.unlocked) - Number(a.unlocked),
+  );
+  const sortedAircraftTypes = [...(aircraftTypes ?? [])].sort(
+    (a, b) => Number(b.unlocked) - Number(a.unlocked),
+  );
+
   const unlockAirportMutation = useMutation({
     mutationFn: unlockAirport,
     onSuccess: () => {
@@ -44,7 +53,7 @@ export function LicensesPage() {
       <section className="card">
         <h2>Airport Licenses</h2>
         <ul className="license-list">
-          {airports?.map((airport: Airport) => (
+          {sortedAirports.map((airport: Airport) => (
             <li key={airport.id} className="license-card">
               <div>
                 <strong>{airport.name}</strong> ({airport.icao4}) -- {airport.city},{" "}
@@ -68,7 +77,7 @@ export function LicensesPage() {
       <section className="card">
         <h2>Pilot Licenses</h2>
         <ul className="license-list">
-          {aircraftTypes?.map((type: AircraftType) => (
+          {sortedAircraftTypes.map((type: AircraftType) => (
             <li key={type.id} className="license-card">
               <div>
                 <strong>{type.name}</strong> -- {type.manufacturer} ({type.icao_type_code})
