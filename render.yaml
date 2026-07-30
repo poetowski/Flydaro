@@ -1,23 +1,26 @@
 # Render Blueprint for Flydaro: https://render.com/docs/blueprint-spec
 #
+# Single service: the FastAPI app serves the API AND the built frontend
+# (mounted as static files with an SPA fallback, see app/main.py), runs the
+# OpenSky poller as an in-process background task, and runs Alembic
+# migrations on startup. No Background Worker, no separate Static Site, no
+# preDeployCommand -- fits entirely on Render's free plan.
+#
 # Postgres itself is NOT provisioned here -- it lives in Neon (see README's
 # Deployment section). DATABASE_URL / DATABASE_URL_DIRECT are `sync: false`
 # so Render prompts for them once, at Blueprint creation, using the Neon
 # pooled/direct connection strings.
 #
-# IMPORTANT: Neon's dashboard copies connection strings with `sslmode=require`,
-# which asyncpg does not understand. Replace it with `ssl=require` before
-# pasting into DATABASE_URL / DATABASE_URL_DIRECT (see README).
+# IMPORTANT: Neon's dashboard copies connection strings with
+# `sslmode=require&channel_binding=require`, neither of which asyncpg
+# understands. Replace both with `ssl=require` before pasting into
+# DATABASE_URL / DATABASE_URL_DIRECT (see README).
 #
-# This is the free-tier topology: ONE web service, no Background Worker, no
-# preDeployCommand -- Render's free plan supports neither. The poller and
-# migrations instead run in-process (RUN_POLLER_IN_API / RUN_MIGRATIONS_ON_STARTUP
-# below), which trades continuous polling for $0: free web services spin down
-# after 15 minutes idle and cold-start (~1 min) on the next request, so the
-# poller pauses while asleep and resumes once something wakes it. See
-# README's Deployment section for the paid, always-on 3-service alternative
-# (dedicated flydaro-poller worker + preDeployCommand), including the
-# commented block below to restore it.
+# Trade-off of one service: a free web service spins down after 15 min idle
+# and cold-starts (~1 min) on the next request -- that's now true of the
+# frontend's first load too, not just the API, and the poller pauses while
+# asleep. Ping /health periodically from a free external uptime service if
+# you want it to stay warmer.
 
 services:
   - name: flydaro-api
@@ -25,12 +28,20 @@ services:
     runtime: python
     rootDir: backend
     plan: free
-    buildCommand: pip install -e .
+    # Builds the frontend first (Vite output lands in ../frontend/dist,
+    # which app/main.py mounts if present), then installs the API itself.
+    # npm pinned (not @latest -- npm 12 requires Node >=22, incompatible
+    # with NODE_VERSION below) as insurance against a real npm bug
+    # (https://github.com/npm/cli/issues/4828) where older npm can skip
+    # installing a platform-specific optional-dependency native binary.
+    buildCommand: pip install -e . && cd ../frontend && npm install -g npm@10.9.7 && npm ci && npm run build
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.10
+      - key: NODE_VERSION
+        value: 20.18.0
       - key: DATABASE_URL
         sync: false
       - key: DATABASE_URL_DIRECT
@@ -47,8 +58,11 @@ services:
         value: "15"
       - key: REFRESH_TOKEN_TTL_DAYS
         value: "30"
+      # Same-origin now that the frontend is served by this service, so
+      # this is mostly moot -- default is fine unless you also hit the API
+      # from somewhere else (e.g. a local dev frontend against prod data).
       - key: CORS_ALLOWED_ORIGINS
-        sync: false
+        value: '["http://localhost:5173"]'
       - key: SIGNUP_BONUS_CREDITS
         value: "2000"
       - key: OPENSKY_CLIENT_ID
@@ -57,10 +71,13 @@ services:
         sync: false
       - key: POLLER_INTERVAL_SECONDS
         value: "45"
+      # Empty = relative fetch() URLs, correct for same-origin serving.
+      - key: VITE_API_BASE_URL
+        value: ""
 
   # --- Paid upgrade path: dedicated always-on poller -------------------------
-  # Uncomment this service, remove RUN_POLLER_IN_API from flydaro-api above,
-  # and add `preDeployCommand: alembic upgrade head` to flydaro-api (removing
+  # Add this service, remove RUN_POLLER_IN_API from flydaro-api above, and
+  # add `preDeployCommand: alembic upgrade head` to flydaro-api (removing
   # RUN_MIGRATIONS_ON_STARTUP) once you're on a paid plan. Needs its own
   # DATABASE_URL_DIRECT/OPENSKY_CLIENT_ID/OPENSKY_CLIENT_SECRET filled in too.
   #
@@ -81,25 +98,3 @@ services:
   #       sync: false
   #     - key: POLLER_INTERVAL_SECONDS
   #       value: "45"
-
-  - name: flydaro-frontend
-    type: web
-    runtime: static
-    rootDir: frontend
-    # Pinned (not @latest -- npm 12 requires Node >=22, incompatible with
-    # NODE_VERSION below) to work around a real npm bug
-    # (https://github.com/npm/cli/issues/4828): older npm sometimes skips
-    # installing the platform-specific optional-dependency native binary
-    # (here, Vite 8/Rolldown's linux-x64-gnu binding) during `npm ci`,
-    # crashing the build with "Cannot find native binding".
-    buildCommand: npm install -g npm@10.9.7 && npm ci && npm run build
-    staticPublishPath: dist
-    envVars:
-      - key: NODE_VERSION
-        value: 20.18.0
-      - key: VITE_API_BASE_URL
-        sync: false
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
