@@ -27,12 +27,15 @@ async def get_flight_board(
     db: AsyncSession = Depends(get_db),
 ) -> list[TrackedFlight]:
     unlocked_airport_ids = await license_service.get_unlocked_airport_ids(db, current_user.id)
+    unlocked_type_ids = await license_service.get_unlocked_aircraft_type_ids(db, current_user.id)
 
     # Floor, not just a UI convenience: applied unconditionally, regardless
-    # of whether airport_id narrows further below, so a user can never see
-    # another airport's flights just by omitting the param.
+    # of whether airport_id/aircraft_type_id narrow further below, so a user
+    # can never see another airport's or a locked aircraft type's flights
+    # just by omitting/varying the params.
     stmt = select(TrackedFlight).where(
         TrackedFlight.origin_airport_id.in_(unlocked_airport_ids),
+        TrackedFlight.aircraft_type_id.in_(unlocked_type_ids),
         # Hides flights whose aircraft type couldn't be resolved at all --
         # a query-level filter, not just a betting-time check.
         TrackedFlight.aircraft_type_id.is_not(None),
@@ -49,9 +52,7 @@ async def get_flight_board(
     if airport_id is not None:
         stmt = stmt.where(TrackedFlight.origin_airport_id == airport_id)
     if aircraft_type_id is not None:
-        # Deliberately not restricted to unlocked types -- a known-but-locked
-        # type stays visible/filterable so the player knows what they're
-        # missing; place_bet is what actually gates betting on it.
+        # Composes on top of the unconditional floor above, same pattern as airport_id.
         stmt = stmt.where(TrackedFlight.aircraft_type_id == aircraft_type_id)
     stmt = stmt.order_by(TrackedFlight.first_seen_at.desc())
 

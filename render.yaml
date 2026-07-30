@@ -70,7 +70,7 @@ services:
       - key: OPENSKY_CLIENT_SECRET
         sync: false
       - key: POLLER_INTERVAL_SECONDS
-        value: "45"
+        value: "60"
       # Empty = relative fetch() URLs, correct for same-origin serving.
       - key: VITE_API_BASE_URL
         value: ""
@@ -97,4 +97,4 @@ services:
   #     - key: OPENSKY_CLIENT_SECRET
   #       sync: false
   #     - key: POLLER_INTERVAL_SECONDS
-  #       value: "45"
+  #       value: "60"

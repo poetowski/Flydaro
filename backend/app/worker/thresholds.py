@@ -8,9 +8,19 @@ place) makes that tuning a one-line change instead of a hunt through the code.
 """
 
 # Takeoff detection: how "airborne, close to the airport, still climbing" is defined.
-TAKEOFF_MAX_ALTITUDE_M = 1500.0  # ~5000 ft
-TAKEOFF_MIN_VERTICAL_RATE_MS = 3.0
-TAKEOFF_MAX_DISTANCE_KM = 15.0
+# Deliberately wide: at a 60s poll interval, a narrower window (previously
+# 1500m/15km) left too few samples per real departure to reliably land one
+# with non-null baro_altitude/vertical_rate before the aircraft climbed past
+# the ceiling. ~3000m covers most of the climb-out phase for most aircraft
+# types, several minutes rather than ~60-120s.
+TAKEOFF_MAX_ALTITUDE_M = 3000.0  # ~10,000 ft
+# Only a reading BELOW this rejects a candidate (clearly not climbing); a
+# null vertical_rate is treated as "unknown", not "not climbing", since
+# OpenSky frequently omits it during climb-out. Looser than requiring proof
+# of a >=3 m/s climb -- see thresholds discussion in the project plan for
+# the false-positive trade-off this accepts.
+TAKEOFF_VERTICAL_RATE_REJECT_BELOW_MS = 0.0
+TAKEOFF_MAX_DISTANCE_KM = 50.0  # matches ground track covered over the wider altitude window
 
 # Rental window: how long AIRBORNE_OPEN stays open (capacity rentable) before locking.
 CAPACITY_WINDOW_MINUTES = 5.0

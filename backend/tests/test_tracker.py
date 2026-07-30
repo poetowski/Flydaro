@@ -57,6 +57,38 @@ def test_takeoff_not_detected_descending():
     assert looks_like_recent_takeoff(state, EHAM) is False
 
 
+def test_takeoff_not_detected_descending_near_zero():
+    # Pins the exact reject cutoff (< 0.0), distinct from the far-negative case above.
+    state = _state(52.32, 4.78, 300.0, False, vertical_rate=-0.1)
+    assert looks_like_recent_takeoff(state, EHAM) is False
+
+
+def test_takeoff_detected_with_null_vertical_rate():
+    # OpenSky frequently omits vertical_rate during climb-out -- must not
+    # reject on missing data, only on data that clearly shows not climbing.
+    state = _state(52.32, 4.78, 300.0, False, vertical_rate=None)
+    assert looks_like_recent_takeoff(state, EHAM) is True
+
+
+def test_takeoff_detected_with_zero_vertical_rate():
+    # Exactly-level doesn't reject -- only a negative reading does.
+    state = _state(52.32, 4.78, 300.0, False, vertical_rate=0.0)
+    assert looks_like_recent_takeoff(state, EHAM) is True
+
+
+def test_takeoff_detected_via_geo_altitude_fallback():
+    # baro_altitude (index 7) missing, geo_altitude (index 13) present.
+    raw = ["abc123", "TST123 ", "NL", None, None, 4.78, 52.32, None, False, 100.0, 0, 6.0, None, 300.0]
+    state = StateVector.from_raw(raw)
+    assert looks_like_recent_takeoff(state, EHAM) is True
+
+
+def test_takeoff_not_detected_when_both_altitudes_missing():
+    raw = ["abc123", "TST123 ", "NL", None, None, 4.78, 52.32, None, False, 100.0, 0, 6.0, None, None]
+    state = StateVector.from_raw(raw)
+    assert looks_like_recent_takeoff(state, EHAM) is False
+
+
 def test_landing_detected_via_on_ground_flag():
     state = _state(52.31, 4.77, 500.0, True, velocity=5.0, vertical_rate=0.0)
     assert looks_like_landing(state) is True

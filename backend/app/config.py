@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     opensky_client_secret: str = ""
     opensky_token_url: str = "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token"
     opensky_api_base: str = "https://opensky-network.org/api"
-    poller_interval_seconds: int = 45
+    poller_interval_seconds: int = 60
 
     # Bulk, irregularly-updated, unversioned "as-is" CSV -- not a live API.
     # Verify this URL still resolves before relying on it; OpenSky gives no

@@ -13,9 +13,9 @@ down_revision = "0003"
 branch_labels = None
 depends_on = None
 
-# Same convention as 0002: bbox is +/- 0.35 degrees around the airport
-# reference point.
-BBOX_MARGIN = 0.35
+# Same convention as 0002. Widened in 0007 (both here and for already-seeded
+# rows) to match the extended takeoff-detection window in thresholds.py.
+BBOX_MARGIN = 1.0
 
 # (icao4, iata, name, city, country, lat, lon, unlock_cost_credits)
 LOCKED_AIRPORTS = [

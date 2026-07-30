@@ -14,10 +14,10 @@ branch_labels = None
 depends_on = None
 
 # (icao4, iata, name, city, country, lat, lon)
-# Bounding box is +/- 0.35 degrees around the airport reference point --
-# wide enough to catch initial climb-out, tight enough to keep OpenSky
-# credit usage per poll low. Tune empirically per plan's open risks.
-BBOX_MARGIN = 0.35
+# Bounding box is +/- BBOX_MARGIN degrees around the airport reference
+# point. Widened in 0007 (both here and for already-seeded rows) to match
+# the extended takeoff-detection window in thresholds.py.
+BBOX_MARGIN = 1.0
 
 STARTER_AIRPORTS = [
     ("EHAM", "AMS", "Amsterdam Schiphol", "Amsterdam", "Netherlands", 52.3086, 4.7639),

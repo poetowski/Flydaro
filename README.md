@@ -82,7 +82,7 @@ python -m app.worker.main
 ```
 
 Runs forever, polling each active airport's bounding box on an interval
-(`POLLER_INTERVAL_SECONDS`, default 45s) and writing tracked flights, state
+(`POLLER_INTERVAL_SECONDS`, default 60s) and writing tracked flights, state
 samples, and rental settlements to Postgres.
 
 ### 4. Frontend

@@ -22,10 +22,20 @@ def looks_like_recent_takeoff(state: StateVector, airport: Airport) -> bool:
         return False
     if state.latitude is None or state.longitude is None:
         return False
-    if state.baro_altitude is None or state.baro_altitude > thresholds.TAKEOFF_MAX_ALTITUDE_M:
+
+    altitude = state.baro_altitude if state.baro_altitude is not None else state.geo_altitude
+    if altitude is None or altitude > thresholds.TAKEOFF_MAX_ALTITUDE_M:
         return False
-    if state.vertical_rate is None or state.vertical_rate < thresholds.TAKEOFF_MIN_VERTICAL_RATE_MS:
+
+    # vertical_rate is frequently null during climb-out (esp. MLAT-only
+    # coverage) -- treat "unknown" as "don't reject", only hard-reject a
+    # reading that clearly shows the aircraft isn't climbing.
+    if (
+        state.vertical_rate is not None
+        and state.vertical_rate < thresholds.TAKEOFF_VERTICAL_RATE_REJECT_BELOW_MS
+    ):
         return False
+
     distance_km = haversine_km(airport.lat, airport.lon, state.latitude, state.longitude)
     return distance_km <= thresholds.TAKEOFF_MAX_DISTANCE_KM
 

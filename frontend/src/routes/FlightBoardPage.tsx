@@ -31,6 +31,7 @@ export function FlightBoardPage() {
   });
 
   const unlockedAirports = airports?.filter((airport) => airport.unlocked) ?? [];
+  const unlockedAircraftTypes = aircraftTypes?.filter((type) => type.unlocked) ?? [];
   const aircraftTypeById = new Map((aircraftTypes ?? []).map((type) => [type.id, type]));
 
   return (
@@ -63,10 +64,10 @@ export function FlightBoardPage() {
               setAircraftTypeId(e.target.value === "all" ? "all" : Number(e.target.value))
             }
           >
-            <option value="all">All types</option>
-            {aircraftTypes?.map((type) => (
+            <option value="all">All unlocked types</option>
+            {unlockedAircraftTypes.map((type) => (
               <option key={type.id} value={type.id}>
-                {type.name} {type.unlocked ? "" : "-- locked"}
+                {type.name}
               </option>
             ))}
           </select>
@@ -87,7 +88,7 @@ export function FlightBoardPage() {
           const aircraftType = flight.aircraft_type_id
             ? aircraftTypeById.get(flight.aircraft_type_id)
             : undefined;
-          const canRent = flight.capacity_open && (aircraftType?.unlocked ?? false);
+          const canRent = flight.capacity_open;
           return (
             <li key={flight.id} className="flight-card">
               <div>
@@ -98,7 +99,6 @@ export function FlightBoardPage() {
               </div>
               <div className="flight-meta">
                 {aircraftType ? aircraftType.name : "Unknown aircraft type"}
-                {aircraftType && !aircraftType.unlocked && " -- pilot license required"}
               </div>
               <div className="flight-meta">
                 First seen airborne: {new Date(flight.first_seen_at).toLocaleTimeString()}
@@ -108,9 +108,7 @@ export function FlightBoardPage() {
                   Rent capacity
                 </Link>
               ) : (
-                <span className="muted">
-                  {flight.capacity_open ? "Pilot license required" : "Capacity closed"}
-                </span>
+                <span className="muted">Capacity closed</span>
               )}
             </li>
           );
