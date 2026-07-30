@@ -77,6 +77,8 @@ export function AdminPage() {
             <span className={`badge ${heartbeat.last_opensky_status < 400 ? "badge-unlocked" : "badge-danger"}`}>
               HTTP {heartbeat.last_opensky_status}
             </span>
+          ) : heartbeat.last_opensky_detail != null ? (
+            <span className="badge badge-danger">No response</span>
           ) : (
             "never attempted"
           )}
