@@ -8,15 +8,25 @@
 # IMPORTANT: Neon's dashboard copies connection strings with `sslmode=require`,
 # which asyncpg does not understand. Replace it with `ssl=require` before
 # pasting into DATABASE_URL / DATABASE_URL_DIRECT (see README).
+#
+# This is the free-tier topology: ONE web service, no Background Worker, no
+# preDeployCommand -- Render's free plan supports neither. The poller and
+# migrations instead run in-process (RUN_POLLER_IN_API / RUN_MIGRATIONS_ON_STARTUP
+# below), which trades continuous polling for $0: free web services spin down
+# after 15 minutes idle and cold-start (~1 min) on the next request, so the
+# poller pauses while asleep and resumes once something wakes it. See
+# README's Deployment section for the paid, always-on 3-service alternative
+# (dedicated flydaro-poller worker + preDeployCommand), including the
+# commented block below to restore it.
 
 services:
   - name: flydaro-api
     type: web
     runtime: python
     rootDir: backend
+    plan: free
     buildCommand: pip install -e .
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
-    preDeployCommand: alembic upgrade head
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
@@ -25,6 +35,10 @@ services:
         sync: false
       - key: DATABASE_URL_DIRECT
         sync: false
+      - key: RUN_MIGRATIONS_ON_STARTUP
+        value: "true"
+      - key: RUN_POLLER_IN_API
+        value: "true"
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_ALGORITHM
@@ -44,23 +58,29 @@ services:
       - key: POLLER_INTERVAL_SECONDS
         value: "45"
 
-  - name: flydaro-poller
-    type: worker
-    runtime: python
-    rootDir: backend
-    buildCommand: pip install -e .
-    startCommand: python -m app.worker.main
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.10
-      - key: DATABASE_URL_DIRECT
-        sync: false
-      - key: OPENSKY_CLIENT_ID
-        sync: false
-      - key: OPENSKY_CLIENT_SECRET
-        sync: false
-      - key: POLLER_INTERVAL_SECONDS
-        value: "45"
+  # --- Paid upgrade path: dedicated always-on poller -------------------------
+  # Uncomment this service, remove RUN_POLLER_IN_API from flydaro-api above,
+  # and add `preDeployCommand: alembic upgrade head` to flydaro-api (removing
+  # RUN_MIGRATIONS_ON_STARTUP) once you're on a paid plan. Needs its own
+  # DATABASE_URL_DIRECT/OPENSKY_CLIENT_ID/OPENSKY_CLIENT_SECRET filled in too.
+  #
+  # - name: flydaro-poller
+  #   type: worker
+  #   runtime: python
+  #   rootDir: backend
+  #   buildCommand: pip install -e .
+  #   startCommand: python -m app.worker.main
+  #   envVars:
+  #     - key: PYTHON_VERSION
+  #       value: 3.11.10
+  #     - key: DATABASE_URL_DIRECT
+  #       sync: false
+  #     - key: OPENSKY_CLIENT_ID
+  #       sync: false
+  #     - key: OPENSKY_CLIENT_SECRET
+  #       sync: false
+  #     - key: POLLER_INTERVAL_SECONDS
+  #       value: "45"
 
   - name: flydaro-frontend
     type: web

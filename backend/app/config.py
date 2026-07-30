@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     # stability guarantee on it.
     aircraft_registry_csv_url: str = "https://opensky-network.org/datasets/metadata/aircraftDatabase.csv"
 
+    # Single-service deployments (e.g. Render's free tier, which has no
+    # Background Worker option and no preDeployCommand) fold the poller and
+    # migrations into the API process instead of running them separately.
+    run_poller_in_api: bool = False
+    run_migrations_on_startup: bool = False
+
 
 @lru_cache
 def get_settings() -> Settings:

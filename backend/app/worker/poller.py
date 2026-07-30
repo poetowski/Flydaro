@@ -1,9 +1,11 @@
+import asyncio
 import logging
 from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.session import DirectSessionLocal
 from app.models.airport import Airport
 from app.models.flight import TrackedFlightStatus
 from app.services import rental_service
@@ -67,3 +69,16 @@ async def run_tick(db: AsyncSession, client: OpenSkyClient) -> None:
     # resolve on schedule even if they never reappear.
     await resolver.resolve_pending_landings(db)
     await resolver.sweep_timeouts_and_lost_signal(db)
+
+
+async def run_forever(client: OpenSkyClient, interval_seconds: int) -> None:
+    """Poll on an interval until cancelled. Shared by the standalone worker
+    process and, on deployments without a separate worker service, an
+    in-process background task started from the API's lifespan."""
+    while True:
+        try:
+            async with DirectSessionLocal() as db:
+                await run_tick(db, client)
+        except Exception:
+            logger.exception("Poller tick failed")
+        await asyncio.sleep(interval_seconds)

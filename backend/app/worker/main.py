@@ -2,9 +2,8 @@ import asyncio
 import logging
 
 from app.config import get_settings
-from app.db.session import DirectSessionLocal
 from app.worker.opensky_client import OpenSkyClient
-from app.worker.poller import run_tick
+from app.worker.poller import run_forever
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -21,13 +20,7 @@ async def main() -> None:
 
     client = OpenSkyClient()
     try:
-        while True:
-            try:
-                async with DirectSessionLocal() as db:
-                    await run_tick(db, client)
-            except Exception:
-                logger.exception("Poller tick failed")
-            await asyncio.sleep(settings.poller_interval_seconds)
+        await run_forever(client, settings.poller_interval_seconds)
     finally:
         await client.aclose()
 
