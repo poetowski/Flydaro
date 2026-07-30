@@ -3,6 +3,7 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import httpx
 from alembic import command
 from alembic.config import Config
 from fastapi import FastAPI
@@ -107,19 +108,38 @@ async def health() -> dict[str, str]:
 
 
 @app.get("/health/opensky")
-async def opensky_health() -> dict[str, int | str | None]:
+async def opensky_health() -> dict[str, int | str | bool | None]:
     """The only visibility into whether ad-hoc OpenSky calls (flight-board
     discovery, on-demand rental status checks) are actually succeeding in
     this deployment -- there's no background poller left to attach a
     heartbeat to, but the shared OpenSkyClient still tracks its own last
     call's outcome, which this just reads back. Unauthenticated like
-    /health since it exposes no player data, only OpenSky call diagnostics.
+    /health since it exposes no player data, only call diagnostics.
+
+    Also does a live check against a well-known, unrelated host (GitHub's
+    API) to tell apart "OpenSky specifically is unreachable/blocking us"
+    from "this deployment's outbound networking is broken generally" --
+    two very different problems with very different fixes.
     """
     client: OpenSkyClient = app.state.opensky_client
+
+    general_egress_ok: bool | None
+    general_egress_detail: str | None
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as probe:
+            response = await probe.get("https://api.github.com")
+        general_egress_ok = response.status_code < 500
+        general_egress_detail = f"HTTP {response.status_code}"
+    except httpx.HTTPError as exc:
+        general_egress_ok = False
+        general_egress_detail = f"{exc.__class__.__name__}: {exc}"
+
     return {
-        "last_status_code": client.last_status_code,
-        "last_status_detail": client.last_status_detail,
+        "last_opensky_status": client.last_status_code,
+        "last_opensky_detail": client.last_status_detail,
         "credits_remaining": client.credits_remaining,
+        "general_egress_ok": general_egress_ok,
+        "general_egress_detail": general_egress_detail,
     }
 
 
