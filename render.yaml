@@ -86,12 +86,13 @@ services:
     type: web
     runtime: static
     rootDir: frontend
-    # `npm install -g npm@latest` works around a real npm bug
+    # Pinned (not @latest -- npm 12 requires Node >=22, incompatible with
+    # NODE_VERSION below) to work around a real npm bug
     # (https://github.com/npm/cli/issues/4828): older npm sometimes skips
     # installing the platform-specific optional-dependency native binary
     # (here, Vite 8/Rolldown's linux-x64-gnu binding) during `npm ci`,
     # crashing the build with "Cannot find native binding".
-    buildCommand: npm install -g npm@latest && npm ci && npm run build
+    buildCommand: npm install -g npm@10.9.7 && npm ci && npm run build
     staticPublishPath: dist
     envVars:
       - key: NODE_VERSION
