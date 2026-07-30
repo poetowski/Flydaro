@@ -8,5 +8,4 @@ class AircraftTypeOut(BaseModel):
     icao_type_code: str
     name: str
     manufacturer: str
-    unlock_cost_credits: int
-    unlocked: bool
+    family_id: int | None

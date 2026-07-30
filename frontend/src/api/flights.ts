@@ -19,11 +19,11 @@ export interface TrackedFlight {
 
 export const getFlightBoard = (
   airportId?: number,
-  aircraftTypeId?: number,
+  aircraftFamilyId?: number,
 ): Promise<TrackedFlight[]> => {
   const params = new URLSearchParams();
   if (airportId !== undefined) params.set("airport_id", String(airportId));
-  if (aircraftTypeId !== undefined) params.set("aircraft_type_id", String(aircraftTypeId));
+  if (aircraftFamilyId !== undefined) params.set("aircraft_family_id", String(aircraftFamilyId));
   const query = params.toString();
   return apiRequest<TrackedFlight[]>(`/flights/board${query ? `?${query}` : ""}`);
 };

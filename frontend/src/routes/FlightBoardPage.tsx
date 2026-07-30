@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { listAircraftFamilies } from "../api/aircraftFamilies";
 import { listAircraftTypes } from "../api/aircraftTypes";
 import { listAirports } from "../api/airports";
 import { getFlightBoard } from "../api/flights";
@@ -14,20 +15,28 @@ const STATUS_LABELS: Record<string, string> = {
 export function FlightBoardPage() {
   const queryClient = useQueryClient();
   const [airportId, setAirportId] = useState<number | "all">("all");
-  const [aircraftTypeId, setAircraftTypeId] = useState<number | "all">("all");
+  const [aircraftFamilyId, setAircraftFamilyId] = useState<number | "all">("all");
 
   const { data: airports } = useQuery({ queryKey: ["airports"], queryFn: listAirports });
+  const { data: aircraftFamilies } = useQuery({
+    queryKey: ["aircraft-families"],
+    queryFn: listAircraftFamilies,
+  });
+  // Separate from the family filter control -- still needed to resolve each
+  // flight card's specific real model name (e.g. "Airbus A321neo"), since a
+  // flight's actual aircraft is always an individual type, only the filter
+  // itself is family-scoped.
   const { data: aircraftTypes } = useQuery({
     queryKey: ["aircraft-types"],
     queryFn: listAircraftTypes,
   });
-  const boardQueryKey = ["flights", "board", airportId, aircraftTypeId];
+  const boardQueryKey = ["flights", "board", airportId, aircraftFamilyId];
   const { data: flights, isLoading, isFetching } = useQuery({
     queryKey: boardQueryKey,
     queryFn: () =>
       getFlightBoard(
         airportId === "all" ? undefined : airportId,
-        aircraftTypeId === "all" ? undefined : aircraftTypeId,
+        aircraftFamilyId === "all" ? undefined : aircraftFamilyId,
       ),
     // No auto-refetch interval: OpenSky is only called ad hoc, when this
     // request is actually made -- loading the page, changing a filter, or
@@ -35,7 +44,7 @@ export function FlightBoardPage() {
   });
 
   const unlockedAirports = airports?.filter((airport) => airport.unlocked) ?? [];
-  const unlockedAircraftTypes = aircraftTypes?.filter((type) => type.unlocked) ?? [];
+  const unlockedAircraftFamilies = aircraftFamilies?.filter((family) => family.unlocked) ?? [];
   const aircraftTypeById = new Map((aircraftTypes ?? []).map((type) => [type.id, type]));
 
   return (
@@ -61,17 +70,17 @@ export function FlightBoardPage() {
         </label>
 
         <label className="airport-filter">
-          Aircraft type
+          Aircraft family
           <select
-            value={aircraftTypeId}
+            value={aircraftFamilyId}
             onChange={(e) =>
-              setAircraftTypeId(e.target.value === "all" ? "all" : Number(e.target.value))
+              setAircraftFamilyId(e.target.value === "all" ? "all" : Number(e.target.value))
             }
           >
-            <option value="all">All unlocked types</option>
-            {unlockedAircraftTypes.map((type) => (
-              <option key={type.id} value={type.id}>
-                {type.name}
+            <option value="all">All unlocked families</option>
+            {unlockedAircraftFamilies.map((family) => (
+              <option key={family.id} value={family.id}>
+                {family.name}
               </option>
             ))}
           </select>

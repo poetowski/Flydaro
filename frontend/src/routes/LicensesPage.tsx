@@ -1,18 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { listAircraftTypes, type AircraftType } from "../api/aircraftTypes";
+import { listAircraftFamilies, type AircraftFamily } from "../api/aircraftFamilies";
 import { listAirports, type Airport } from "../api/airports";
 import { ApiError } from "../api/client";
-import { unlockAircraftType, unlockAirport } from "../api/licenses";
+import { unlockAircraftFamily, unlockAirport } from "../api/licenses";
 
 export function LicensesPage() {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
 
   const { data: airports } = useQuery({ queryKey: ["airports"], queryFn: listAirports });
-  const { data: aircraftTypes } = useQuery({
-    queryKey: ["aircraft-types"],
-    queryFn: listAircraftTypes,
+  const { data: aircraftFamilies } = useQuery({
+    queryKey: ["aircraft-families"],
+    queryFn: listAircraftFamilies,
   });
 
   // Unlocked first, then locked -- stable sort so a freshly-unlocked item
@@ -20,7 +20,7 @@ export function LicensesPage() {
   const sortedAirports = [...(airports ?? [])].sort(
     (a, b) => Number(b.unlocked) - Number(a.unlocked),
   );
-  const sortedAircraftTypes = [...(aircraftTypes ?? [])].sort(
+  const sortedAircraftFamilies = [...(aircraftFamilies ?? [])].sort(
     (a, b) => Number(b.unlocked) - Number(a.unlocked),
   );
 
@@ -34,15 +34,15 @@ export function LicensesPage() {
     onError: (err) => setError(err instanceof ApiError ? err.message : "Could not unlock airport"),
   });
 
-  const unlockAircraftTypeMutation = useMutation({
-    mutationFn: unlockAircraftType,
+  const unlockAircraftFamilyMutation = useMutation({
+    mutationFn: unlockAircraftFamily,
     onSuccess: () => {
       setError(null);
       queryClient.invalidateQueries({ queryKey: ["wallet"] });
-      queryClient.invalidateQueries({ queryKey: ["aircraft-types"] });
+      queryClient.invalidateQueries({ queryKey: ["aircraft-families"] });
     },
     onError: (err) =>
-      setError(err instanceof ApiError ? err.message : "Could not unlock aircraft type"),
+      setError(err instanceof ApiError ? err.message : "Could not unlock aircraft family"),
   });
 
   return (
@@ -77,19 +77,22 @@ export function LicensesPage() {
       <section className="card">
         <h2>Pilot Licenses</h2>
         <ul className="license-list">
-          {sortedAircraftTypes.map((type: AircraftType) => (
-            <li key={type.id} className="license-card">
+          {sortedAircraftFamilies.map((family: AircraftFamily) => (
+            <li key={family.id} className="license-card">
               <div>
-                <strong>{type.name}</strong> -- {type.manufacturer} ({type.icao_type_code})
+                <strong>{family.name}</strong>
+                <div className="flight-meta">
+                  Covers: {family.member_types.map((t) => t.name).join(", ")}
+                </div>
               </div>
-              {type.unlocked ? (
+              {family.unlocked ? (
                 <span className="badge badge-unlocked">Unlocked</span>
               ) : (
                 <button
-                  onClick={() => unlockAircraftTypeMutation.mutate(type.id)}
-                  disabled={unlockAircraftTypeMutation.isPending}
+                  onClick={() => unlockAircraftFamilyMutation.mutate(family.id)}
+                  disabled={unlockAircraftFamilyMutation.isPending}
                 >
-                  Unlock ({type.unlock_cost_credits} cr)
+                  Unlock ({family.unlock_cost_credits} cr)
                 </button>
               )}
             </li>

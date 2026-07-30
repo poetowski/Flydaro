@@ -12,6 +12,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import get_settings
 from app.routers import (
+    aircraft_families,
     aircraft_types,
     airports,
     auth,
@@ -94,6 +95,7 @@ app.include_router(wallet.router)
 app.include_router(airports.router)
 app.include_router(item_types.router)
 app.include_router(aircraft_types.router)
+app.include_router(aircraft_families.router)
 app.include_router(licenses.router)
 app.include_router(flights.router)
 app.include_router(rentals.router)

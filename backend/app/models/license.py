@@ -14,11 +14,11 @@ class UserAirportUnlock(Base):
     unlocked_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
 
 
-class UserAircraftTypeUnlock(Base):
-    __tablename__ = "user_aircraft_type_unlocks"
+class UserAircraftFamilyUnlock(Base):
+    __tablename__ = "user_aircraft_family_unlocks"
 
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
-    aircraft_type_id: Mapped[int] = mapped_column(
-        ForeignKey("aircraft_types.id"), primary_key=True
+    family_id: Mapped[int] = mapped_column(
+        ForeignKey("aircraft_families.id"), primary_key=True
     )
     unlocked_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)

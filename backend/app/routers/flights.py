@@ -24,7 +24,7 @@ OPEN_BOARD_STATUSES = (
 @router.get("/board", response_model=list[TrackedFlightOut])
 async def get_flight_board(
     airport_id: int | None = None,
-    aircraft_type_id: int | None = None,
+    aircraft_family_id: int | None = None,
     status_filter: str | None = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -44,9 +44,9 @@ async def get_flight_board(
         await db.commit()
 
     # Floor, not just a UI convenience: applied unconditionally, regardless
-    # of whether airport_id/aircraft_type_id narrow further below, so a user
-    # can never see another airport's or a locked aircraft type's flights
-    # just by omitting/varying the params.
+    # of whether airport_id/aircraft_family_id narrow further below, so a
+    # user can never see another airport's or a locked aircraft family's
+    # flights just by omitting/varying the params.
     stmt = select(TrackedFlight).where(
         TrackedFlight.origin_airport_id.in_(unlocked_airport_ids),
         TrackedFlight.aircraft_type_id.in_(unlocked_type_ids),
@@ -65,9 +65,13 @@ async def get_flight_board(
         stmt = stmt.where(TrackedFlight.status.in_(OPEN_BOARD_STATUSES))
     if airport_id is not None:
         stmt = stmt.where(TrackedFlight.origin_airport_id == airport_id)
-    if aircraft_type_id is not None:
-        # Composes on top of the unconditional floor above, same pattern as airport_id.
-        stmt = stmt.where(TrackedFlight.aircraft_type_id == aircraft_type_id)
+    if aircraft_family_id is not None:
+        # Filters across every member type of the family at once (e.g.
+        # selecting "Airbus A320 Family" surfaces A319/A320/A321/neo flights
+        # together) -- composes on top of the unconditional floor above,
+        # same pattern as airport_id.
+        family_type_ids = await license_service.expand_family_to_type_ids(db, aircraft_family_id)
+        stmt = stmt.where(TrackedFlight.aircraft_type_id.in_(family_type_ids))
     stmt = stmt.order_by(TrackedFlight.first_seen_at.desc())
 
     result = await db.scalars(stmt)

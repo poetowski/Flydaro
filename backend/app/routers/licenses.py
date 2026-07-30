@@ -5,7 +5,8 @@ from app.core.exceptions import ConflictError, InsufficientFundsError, NotFoundE
 from app.core.security import get_current_user
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.aircraft import AircraftTypeOut
+from app.routers.aircraft_families import build_family_out
+from app.schemas.aircraft_family import AircraftFamilyOut
 from app.schemas.airport import AirportOut
 from app.services import license_service
 
@@ -42,16 +43,14 @@ async def unlock_airport(
     )
 
 
-@router.post("/aircraft-types/{aircraft_type_id}/unlock", response_model=AircraftTypeOut)
-async def unlock_aircraft_type(
-    aircraft_type_id: int,
+@router.post("/aircraft-families/{family_id}/unlock", response_model=AircraftFamilyOut)
+async def unlock_aircraft_family(
+    family_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> AircraftTypeOut:
+) -> AircraftFamilyOut:
     try:
-        aircraft_type = await license_service.unlock_aircraft_type(
-            db, current_user.id, aircraft_type_id
-        )
+        family = await license_service.unlock_aircraft_family(db, current_user.id, family_id)
     except NotFoundError as exc:
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
@@ -62,11 +61,4 @@ async def unlock_aircraft_type(
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     await db.commit()
-    return AircraftTypeOut(
-        id=aircraft_type.id,
-        icao_type_code=aircraft_type.icao_type_code,
-        name=aircraft_type.name,
-        manufacturer=aircraft_type.manufacturer,
-        unlock_cost_credits=aircraft_type.unlock_cost_credits,
-        unlocked=True,
-    )
+    return await build_family_out(db, family, {family_id})

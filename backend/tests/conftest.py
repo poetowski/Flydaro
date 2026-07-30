@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.db.base import Base
 from app.models import *  # noqa: F401,F403 register all models on Base.metadata
 from app.models.aircraft import AircraftType
+from app.models.aircraft_family import AircraftFamily
 from app.models.airport import Airport
 from app.models.item_type import ItemCategory, ItemType
 from app.models.flight import TrackedFlight, TrackedFlightStatus
@@ -61,13 +62,26 @@ async def airport(db) -> Airport:
 
 
 @pytest_asyncio.fixture
-async def aircraft_type(db) -> AircraftType:
+async def aircraft_family(db) -> AircraftFamily:
+    f = AircraftFamily(
+        code="A320_FAMILY",
+        name="Airbus A320 Family",
+        is_starter=True,
+        unlock_cost_credits=0,
+        is_active=True,
+    )
+    db.add(f)
+    await db.flush()
+    return f
+
+
+@pytest_asyncio.fixture
+async def aircraft_type(db, aircraft_family) -> AircraftType:
     t = AircraftType(
         icao_type_code="A320",
         name="Airbus A320",
         manufacturer="Airbus",
-        is_starter=True,
-        unlock_cost_credits=0,
+        family_id=aircraft_family.id,
         is_active=True,
     )
     db.add(t)
@@ -99,13 +113,26 @@ async def locked_airport(db) -> Airport:
 
 
 @pytest_asyncio.fixture
-async def locked_aircraft_type(db) -> AircraftType:
+async def locked_aircraft_family(db) -> AircraftFamily:
+    f = AircraftFamily(
+        code="B777_FAMILY",
+        name="Boeing 777 Family",
+        is_starter=False,
+        unlock_cost_credits=550,
+        is_active=True,
+    )
+    db.add(f)
+    await db.flush()
+    return f
+
+
+@pytest_asyncio.fixture
+async def locked_aircraft_type(db, locked_aircraft_family) -> AircraftType:
     t = AircraftType(
         icao_type_code="B77W",
         name="Boeing 777-300ER",
         manufacturer="Boeing",
-        is_starter=False,
-        unlock_cost_credits=400,
+        family_id=locked_aircraft_family.id,
         is_active=True,
     )
     db.add(t)
