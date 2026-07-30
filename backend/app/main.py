@@ -106,6 +106,23 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/health/opensky")
+async def opensky_health() -> dict[str, int | str | None]:
+    """The only visibility into whether ad-hoc OpenSky calls (flight-board
+    discovery, on-demand rental status checks) are actually succeeding in
+    this deployment -- there's no background poller left to attach a
+    heartbeat to, but the shared OpenSkyClient still tracks its own last
+    call's outcome, which this just reads back. Unauthenticated like
+    /health since it exposes no player data, only OpenSky call diagnostics.
+    """
+    client: OpenSkyClient = app.state.opensky_client
+    return {
+        "last_status_code": client.last_status_code,
+        "last_status_detail": client.last_status_detail,
+        "credits_remaining": client.credits_remaining,
+    }
+
+
 # Registered last so it only catches requests no API route above matched.
 # Absent in local dev unless you've run `npm run build` -- the frontend
 # normally runs separately via `npm run dev` there (see README).
