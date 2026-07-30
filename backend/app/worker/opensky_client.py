@@ -105,28 +105,32 @@ class OpenSkyClient:
         self.last_status_code = status_code
         self.last_status_detail = detail
 
-    async def get_states_in_bbox(
-        self, lamin: float, lomin: float, lamax: float, lomax: float
-    ) -> list[StateVector]:
+    async def _get(self, path: str, params: dict) -> httpx.Response | None:
+        """Shared GET path: token fetch, request, one 401-triggered token
+        retry, credit/call-result bookkeeping. Returns None (having already
+        recorded why) on anything that never produced a response; otherwise
+        returns the response as-is -- callers still need to check status
+        (e.g. 429) themselves since "no exception" isn't "treat as success"
+        for every endpoint the same way.
+        """
         try:
             token = await self._get_valid_token()
         except httpx.HTTPStatusError as exc:
             self._record_call_result(exc.response.status_code, _response_detail(exc.response))
-            return []
+            return None
         except httpx.HTTPError as exc:
             self._record_call_result(None, f"Token request failed: {exc.__class__.__name__}: {exc}")
-            return []
+            return None
 
+        url = f"{settings.opensky_api_base}{path}"
         try:
             response = await self._http.get(
-                f"{settings.opensky_api_base}/states/all",
-                params={"lamin": lamin, "lomin": lomin, "lamax": lamax, "lomax": lomax},
-                headers={"Authorization": f"Bearer {token}"},
+                url, params=params, headers={"Authorization": f"Bearer {token}"}
             )
         except httpx.HTTPError as exc:
             logger.exception("OpenSky request failed")
             self._record_call_result(None, f"{exc.__class__.__name__}: {exc}")
-            return []
+            return None
 
         if response.status_code == 401:
             # Token may have been invalidated server-side; force one retry.
@@ -135,18 +139,25 @@ class OpenSkyClient:
                 token = await self._get_valid_token()
             except httpx.HTTPError as exc:
                 self._record_call_result(None, f"Token refresh failed: {exc.__class__.__name__}: {exc}")
-                return []
+                return None
             response = await self._http.get(
-                f"{settings.opensky_api_base}/states/all",
-                params={"lamin": lamin, "lomin": lomin, "lamax": lamax, "lomax": lomax},
-                headers={"Authorization": f"Bearer {token}"},
+                url, params=params, headers={"Authorization": f"Bearer {token}"}
             )
 
         self._update_credit_budget(response)
         self._record_call_result(
             response.status_code, None if response.is_success else _response_detail(response)
         )
+        return response
 
+    async def get_states_in_bbox(
+        self, lamin: float, lomin: float, lamax: float, lomax: float
+    ) -> list[StateVector]:
+        response = await self._get(
+            "/states/all", {"lamin": lamin, "lomin": lomin, "lamax": lamax, "lomax": lomax}
+        )
+        if response is None:
+            return []
         if response.status_code == 429:
             logger.warning("OpenSky rate limit hit (429), skipping this tick for this box")
             return []
@@ -155,6 +166,35 @@ class OpenSkyClient:
         body = response.json()
         states = body.get("states") or []
         return [StateVector.from_raw(row) for row in states]
+
+    async def get_state_for_icao24(self, icao24: str) -> StateVector | None:
+        """Single-aircraft live lookup, used for an on-demand landing check
+        (has this specific aircraft got a current live report, and if so is
+        it on the ground) rather than scanning a whole airport's bbox.
+        """
+        response = await self._get("/states/all", {"icao24": icao24.lower()})
+        if response is None or response.status_code == 429:
+            return None
+        response.raise_for_status()
+
+        body = response.json()
+        states = body.get("states") or []
+        return StateVector.from_raw(states[0]) if states else None
+
+    async def get_aircraft_flights(self, icao24: str, begin: int, end: int) -> list[dict]:
+        """Historical flight legs for one aircraft over [begin, end] (unix
+        seconds, OpenSky caps the window at 7 days) via /flights/aircraft --
+        the only way to confirm what happened to a flight after the fact,
+        e.g. once the tracking window itself has gone quiet/the app was
+        asleep through the actual landing. Distinct from live state
+        vectors: this comes from OpenSky's own arrival-estimation, keyed by
+        estDepartureAirport/estArrivalAirport, not on_ground/altitude.
+        """
+        response = await self._get("/flights/aircraft", {"icao24": icao24.lower(), "begin": begin, "end": end})
+        if response is None or response.status_code == 429:
+            return []
+        response.raise_for_status()
+        return response.json() or []
 
 
 def _response_detail(response: httpx.Response) -> str:

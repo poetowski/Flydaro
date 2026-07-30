@@ -40,3 +40,13 @@ LANDING_GRACE_PERIOD_MINUTES = 5.0
 # OpenSky coverage drops the aircraft entirely.
 MAX_FLIGHT_DURATION_CEILING_MINUTES = 12 * 60.0  # single global ceiling for phase 1
 LOST_SIGNAL_CEILING_MINUTES = 25.0
+
+# On-demand landing confirmation (app/services/flight_status_service.py):
+# triggered when a player checks their rentals, not on a fixed schedule, so
+# it needs its own throttle rather than relying on poll cadence.
+STATUS_CHECK_MIN_INTERVAL_SECONDS = 30.0
+# How far a /flights/aircraft leg's firstSeen may drift from our own
+# first_seen_at and still count as "the same departure" -- OpenSky's own
+# takeoff timestamp for the same event won't line up to the second with
+# ours, but should be close.
+HISTORICAL_LEG_MATCH_TOLERANCE_MINUTES = 30.0

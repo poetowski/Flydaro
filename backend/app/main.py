@@ -64,23 +64,27 @@ async def lifespan(app: FastAPI):
             logger.exception("Migrations failed on startup")
             raise
 
+    if not settings.opensky_client_id or not settings.opensky_client_secret:
+        logger.warning(
+            "OPENSKY_CLIENT_ID/OPENSKY_CLIENT_SECRET are not set -- OpenSky "
+            "calls (poller and on-demand rental status checks) will fail."
+        )
+
+    # Shared regardless of run_poller_in_api: the on-demand landing check
+    # in /rentals (app/services/flight_status_service.py) needs a client
+    # even on deployments where the background poller loop is disabled.
+    client = OpenSkyClient()
+    app.state.opensky_client = client
+
     poller_task = None
-    client = None
     if settings.run_poller_in_api:
-        if not settings.opensky_client_id or not settings.opensky_client_secret:
-            logger.warning(
-                "OPENSKY_CLIENT_ID/OPENSKY_CLIENT_SECRET are not set -- the "
-                "in-process poller will run but every request to OpenSky will fail."
-            )
-        client = OpenSkyClient()
         poller_task = asyncio.create_task(run_forever(client, settings.poller_interval_seconds))
 
     yield
 
     if poller_task is not None:
         poller_task.cancel()
-    if client is not None:
-        await client.aclose()
+    await client.aclose()
 
 
 app = FastAPI(title="Flydaro API", version="0.1.0", lifespan=lifespan)
