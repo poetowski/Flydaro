@@ -70,6 +70,16 @@ services:
         sync: false
       - key: OPENSKY_CLIENT_SECRET
         sync: false
+      # Optional: only set these if OpenSky calls are failing with
+      # ConnectTimeout from this deployment's egress (a known Render
+      # free-tier issue, unrelated to OpenSky's API itself) -- routes
+      # OpenSky calls through a Cloudflare Worker relay instead of calling
+      # opensky-network.org directly. See backend/deploy/cloudflare-relay-worker.js.
+      # Leave both unset to call OpenSky directly (the default).
+      - key: OPENSKY_RELAY_URL
+        sync: false
+      - key: OPENSKY_RELAY_SECRET
+        sync: false
       # Empty = relative fetch() URLs, correct for same-origin serving.
       - key: VITE_API_BASE_URL
         value: ""
