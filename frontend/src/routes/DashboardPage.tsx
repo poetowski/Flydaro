@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { listMyRentals } from "../api/rentals";
 import { getWallet } from "../api/wallet";
 
-const ACTIVE_STATUSES = new Set(["PENDING", "IN_PROGRESS", "RESOLVING"]);
+const ACTIVE_STATUSES = new Set(["FLYING", "IN_PROGRESS", "RESOLVING"]);
 
 export function DashboardPage() {
   const { data: wallet } = useQuery({ queryKey: ["wallet"], queryFn: getWallet });

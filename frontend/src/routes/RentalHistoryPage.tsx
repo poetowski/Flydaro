@@ -10,7 +10,7 @@ import { Modal } from "../components/Modal";
 import { familyBadgeLabel } from "../lib/familyLabel";
 
 const STATUS_LABELS: Record<string, string> = {
-  PENDING: "Pending departure",
+  FLYING: "Flying (open for rentals)",
   IN_PROGRESS: "In flight",
   RESOLVING: "Landing...",
   RESOLVED: "Resolved",

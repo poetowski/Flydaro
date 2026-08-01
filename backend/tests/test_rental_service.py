@@ -27,7 +27,7 @@ async def _fund(db, user, amount=2000):
 async def test_create_rental_debits_wallet_and_creates_pending_rental(db, user, open_flight, item_type):
     await _fund(db, user)
     rental = await rental_service.create_rental(db, user.id, open_flight.id, item_type.id, 300)
-    assert rental.status == RentalStatus.PENDING
+    assert rental.status == RentalStatus.FLYING
     assert await get_balance(db, user.id) == 1700
 
 
@@ -231,7 +231,7 @@ async def test_create_rental_succeeds_with_fixture_default_crew(db, user, open_f
     that airport should succeed without any extra setup."""
     await _fund(db, user)
     rental = await rental_service.create_rental(db, user.id, open_flight.id, item_type.id, 300)
-    assert rental.status == RentalStatus.PENDING
+    assert rental.status == RentalStatus.FLYING
 
 
 async def test_second_simultaneous_rental_from_same_airport_raises_crew_unavailable(

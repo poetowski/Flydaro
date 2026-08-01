@@ -19,7 +19,7 @@ CREW_BASE_COST_CREDITS = 300
 # resolves -- claiming the reward afterward is a separate wallet action
 # that doesn't affect crew availability.
 _BUSY_STATUSES = (
-    RentalStatus.PENDING,
+    RentalStatus.FLYING,
     RentalStatus.IN_PROGRESS,
     RentalStatus.RESOLVING,
 )

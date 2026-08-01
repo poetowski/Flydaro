@@ -21,6 +21,10 @@ export function TheCrewPage() {
 
   const crewByAirportId = new Map((crewOverview ?? []).map((entry) => [entry.airport_id, entry]));
 
+  const totalCrew = (crewOverview ?? []).reduce((sum, c) => sum + c.crew_count, 0);
+  const busyCrew = (crewOverview ?? []).reduce((sum, c) => sum + c.busy_count, 0);
+  const idleCrew = totalCrew - busyCrew;
+
   // Unlocked-with-crew-data first, then locked -- same stable-sort convention as LicensesPage.
   const sortedAirports = [...(airports ?? [])].sort(
     (a, b) => Number(b.unlocked) - Number(a.unlocked),
@@ -38,7 +42,7 @@ export function TheCrewPage() {
 
   return (
     <div className="page">
-      <h1>The Crew</h1>
+      <h1>Crew</h1>
       <p>
         Crew members handle the logistics at an airport -- one is tied up for the entire
         duration of each rental originating there. Hire more to run rentals in parallel.
@@ -56,6 +60,21 @@ export function TheCrewPage() {
           {crewError instanceof ApiError ? crewError.message : "unknown error"}
         </p>
       )}
+
+      <section className="card stat-row">
+        <div className="stat-card">
+          <p className="stat-value">{idleCrew}</p>
+          <p className="stat-label">Idle Crew Members</p>
+        </div>
+        <div className="stat-card">
+          <p className="stat-value">{busyCrew}</p>
+          <p className="stat-label">Busy Crew Members</p>
+        </div>
+        <div className="stat-card">
+          <p className="stat-value">{totalCrew}</p>
+          <p className="stat-label">Total Crew Members</p>
+        </div>
+      </section>
 
       <section className="card">
         <ul className="license-list">

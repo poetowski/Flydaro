@@ -135,6 +135,30 @@ select {
   margin: 0;
 }
 
+.stat-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.stat-card {
+  flex: 1 1 140px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+.stat-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.stat-label {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
 button,
 .button {
   display: inline-block;
@@ -292,7 +316,7 @@ button:disabled {
   background: var(--border);
 }
 
-.rental-status-pending {
+.rental-status-flying {
   background: var(--border);
   color: var(--text-muted);
 }

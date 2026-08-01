@@ -88,7 +88,7 @@ async def create_rental(
                     tracked_flight_id=tracked_flight_id,
                     item_type_id=item_type_id,
                     rental_fee_credits=rental_fee_credits,
-                    status=RentalStatus.PENDING,
+                    status=RentalStatus.FLYING,
                     display_code=generate_display_code(flight.first_seen_at),
                 )
                 db.add(rental)
@@ -156,7 +156,7 @@ async def lock_capacity(db: AsyncSession, flight: TrackedFlight) -> None:
     flight.capacity_open = False
 
     rentals = await db.scalars(
-        select(Rental).where(Rental.tracked_flight_id == flight.id, Rental.status == RentalStatus.PENDING)
+        select(Rental).where(Rental.tracked_flight_id == flight.id, Rental.status == RentalStatus.FLYING)
     )
     for rental in rentals:
         rental.status = RentalStatus.IN_PROGRESS
@@ -215,7 +215,7 @@ async def resolve_tracked_flight(
     rentals = await db.scalars(
         select(Rental).where(
             Rental.tracked_flight_id == flight.id,
-            Rental.status.in_([RentalStatus.PENDING, RentalStatus.IN_PROGRESS, RentalStatus.RESOLVING]),
+            Rental.status.in_([RentalStatus.FLYING, RentalStatus.IN_PROGRESS, RentalStatus.RESOLVING]),
         )
     )
     item_multiplier_cache: dict[int, float] = {}

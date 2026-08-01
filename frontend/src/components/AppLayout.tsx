@@ -29,7 +29,7 @@ export function AppLayout() {
           <NavLink to="/flights">Flight Board</NavLink>
           <NavLink to="/rentals">Rental History</NavLink>
           <NavLink to="/licenses">Licenses</NavLink>
-          <NavLink to="/the-crew">The Crew</NavLink>
+          <NavLink to="/the-crew">Crew</NavLink>
           <NavLink to="/board-of-fame" className="nav-right-group">
             Board of Fame
           </NavLink>

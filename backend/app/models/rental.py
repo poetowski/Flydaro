@@ -9,7 +9,7 @@ from app.models.flight import JsonVariant
 
 
 class RentalStatus(str, enum.Enum):
-    PENDING = "PENDING"
+    FLYING = "FLYING"
     IN_PROGRESS = "IN_PROGRESS"
     RESOLVING = "RESOLVING"
     RESOLVED = "RESOLVED"
@@ -37,7 +37,7 @@ class Rental(Base):
     status: Mapped[RentalStatus] = mapped_column(
         Enum(RentalStatus, name="rental_status", native_enum=False),
         nullable=False,
-        default=RentalStatus.PENDING,
+        default=RentalStatus.FLYING,
     )
 
     rented_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
