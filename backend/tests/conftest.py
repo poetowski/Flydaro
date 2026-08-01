@@ -9,6 +9,7 @@ from app.models import *  # noqa: F401,F403 register all models on Base.metadata
 from app.models.aircraft import AircraftType
 from app.models.aircraft_family import AircraftFamily
 from app.models.airport import Airport
+from app.models.crew import UserAirportCrew
 from app.models.item_type import ItemCategory, ItemType
 from app.models.flight import TrackedFlight, TrackedFlightStatus
 from app.models.user import User
@@ -40,7 +41,7 @@ async def user(db) -> User:
 
 
 @pytest_asyncio.fixture
-async def airport(db) -> Airport:
+async def airport(db, user) -> Airport:
     a = Airport(
         icao4="EHAM",
         iata="AMS",
@@ -57,6 +58,11 @@ async def airport(db) -> Airport:
         is_active=True,
     )
     db.add(a)
+    await db.flush()
+    # Every rental-lifecycle test transitively depends on this fixture --
+    # granting 1 crew member here (rather than editing each test) keeps
+    # create_rental's crew gate from breaking every pre-existing test.
+    db.add(UserAirportCrew(user_id=user.id, airport_id=a.id, crew_count=1))
     await db.flush()
     return a
 

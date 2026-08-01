@@ -10,6 +10,7 @@ import { LicensesPage } from "./routes/LicensesPage";
 import { LoginPage } from "./routes/LoginPage";
 import { OurStoryPage } from "./routes/OurStoryPage";
 import { SignupPage } from "./routes/SignupPage";
+import { TheCrewPage } from "./routes/TheCrewPage";
 import { WalletLedgerPage } from "./routes/WalletLedgerPage";
 
 export const router = createBrowserRouter([
@@ -26,6 +27,7 @@ export const router = createBrowserRouter([
           { path: "/flights/:flightId/rent", element: <RentalPlacementPage /> },
           { path: "/rentals", element: <RentalHistoryPage /> },
           { path: "/licenses", element: <LicensesPage /> },
+          { path: "/the-crew", element: <TheCrewPage /> },
           { path: "/wallet-ledger", element: <WalletLedgerPage /> },
           { path: "/board-of-fame", element: <BoardOfFamePage /> },
           { path: "/our-story", element: <OurStoryPage /> },

@@ -14,6 +14,7 @@ class LedgerReason(str, enum.Enum):
     LICENSE_PURCHASE = "license_purchase"
     ITEM_TYPE_PURCHASE = "item_type_purchase"
     ADMIN_ADJUSTMENT = "admin_adjustment"
+    CREW_HIRE = "crew_hire"
 
 
 class Wallet(Base):

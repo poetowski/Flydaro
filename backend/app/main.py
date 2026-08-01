@@ -17,6 +17,7 @@ from app.routers import (
     aircraft_types,
     airports,
     auth,
+    crew,
     flights,
     item_types,
     leaderboard,
@@ -111,6 +112,7 @@ app.include_router(item_types.router)
 app.include_router(aircraft_types.router)
 app.include_router(aircraft_families.router)
 app.include_router(licenses.router)
+app.include_router(crew.router)
 app.include_router(flights.router)
 app.include_router(rentals.router)
 app.include_router(leaderboard.router)

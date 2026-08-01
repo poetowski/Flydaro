@@ -5,6 +5,7 @@ import pytest
 from app.core.exceptions import (
     CapacityClosedError,
     ConflictError,
+    CrewUnavailableError,
     InsufficientFundsError,
     LicenseRequiredError,
     NotFoundError,
@@ -13,7 +14,7 @@ from app.core.exceptions import (
 from app.models.rental import RentalStatus
 from app.models.flight import TrackedFlightStatus
 from app.models.user import User
-from app.services import rental_service
+from app.services import crew_service, rental_service
 from app.services.settlement_service import LANDED_REASON, LOST_SIGNAL_REASON
 from app.services.wallet_service import apply_ledger_entry, get_balance
 from app.models.wallet import LedgerReason
@@ -42,9 +43,10 @@ async def test_create_rental_display_code_starts_with_departure_time(
 
 
 async def test_two_rentals_on_same_flight_get_different_display_codes(
-    db, user, open_flight, item_type
+    db, user, airport, open_flight, item_type
 ):
     await _fund(db, user, amount=4000)
+    await crew_service.hire_crew(db, user.id, airport.id)  # 2nd crew member -- both rentals fit
     first = await rental_service.create_rental(db, user.id, open_flight.id, item_type.id, 300)
     second = await rental_service.create_rental(db, user.id, open_flight.id, item_type.id, 300)
     assert first.display_code != second.display_code
@@ -222,3 +224,43 @@ async def test_claim_rental_for_other_users_rental_raises_not_found(
 
     with pytest.raises(NotFoundError):
         await rental_service.claim_rental(db, other_user.id, rental.id)
+
+
+async def test_create_rental_succeeds_with_fixture_default_crew(db, user, open_flight, item_type):
+    """The `airport` fixture grants 1 crew member -- a single rental from
+    that airport should succeed without any extra setup."""
+    await _fund(db, user)
+    rental = await rental_service.create_rental(db, user.id, open_flight.id, item_type.id, 300)
+    assert rental.status == RentalStatus.PENDING
+
+
+async def test_second_simultaneous_rental_from_same_airport_raises_crew_unavailable(
+    db, user, open_flight, item_type
+):
+    await _fund(db, user, amount=4000)
+    await rental_service.create_rental(db, user.id, open_flight.id, item_type.id, 300)
+    with pytest.raises(CrewUnavailableError):
+        await rental_service.create_rental(db, user.id, open_flight.id, item_type.id, 300)
+
+
+async def test_rental_from_airport_frees_crew_once_flight_resolves(
+    db, user, open_flight, item_type
+):
+    await _fund(db, user, amount=4000)
+    first = await rental_service.create_rental(db, user.id, open_flight.id, item_type.id, 300)
+    with pytest.raises(CrewUnavailableError):
+        await rental_service.create_rental(db, user.id, open_flight.id, item_type.id, 300)
+
+    resolved_at = open_flight.first_seen_at + timedelta(minutes=30)
+    await rental_service.resolve_tracked_flight(
+        db, open_flight, TrackedFlightStatus.RESOLVED_LANDED, LANDED_REASON, {}, resolved_at=resolved_at
+    )
+
+    # Crew freed up now that the flight resolved -- re-open the same flight
+    # (simplest stand-in for "a new flight from the same airport") and
+    # confirm renting from it again now succeeds, even though `first` is
+    # still unclaimed.
+    open_flight.status = TrackedFlightStatus.AIRBORNE_OPEN
+    open_flight.capacity_open = True
+    second = await rental_service.create_rental(db, user.id, open_flight.id, item_type.id, 300)
+    assert second.id != first.id

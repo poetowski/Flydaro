@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import (
     CapacityClosedError,
     ConflictError,
+    CrewUnavailableError,
     LicenseRequiredError,
     NotFoundError,
     RentalNotResolvedError,
@@ -20,7 +21,7 @@ from app.models.flight import TrackedFlight, TrackedFlightStatus
 from app.models.item_type import ItemType
 from app.models.rental import Rental, RentalStatus
 from app.models.wallet import LedgerReason
-from app.services import license_service, settlement_service
+from app.services import crew_service, license_service, settlement_service
 from app.services.wallet_service import apply_ledger_entry
 
 # Excludes visually ambiguous characters (0/O, 1/I).
@@ -61,6 +62,13 @@ async def create_rental(
         db, user_id, flight.aircraft_type_id
     ):
         raise LicenseRequiredError("You have not unlocked this aircraft type")
+
+    crew_count = await crew_service.get_crew_count(db, user_id, airport.id)
+    busy_count = await crew_service.count_busy_rentals(db, user_id, airport.id)
+    if busy_count >= crew_count:
+        raise CrewUnavailableError(
+            "No free crew members at this airport -- all are currently assigned"
+        )
 
     item_type = await db.get(ItemType, item_type_id)
     if item_type is None or not item_type.is_active:

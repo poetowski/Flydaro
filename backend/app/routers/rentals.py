@@ -5,6 +5,7 @@ from app.core.dependencies import get_adsb_client
 from app.core.exceptions import (
     CapacityClosedError,
     ConflictError,
+    CrewUnavailableError,
     InsufficientFundsError,
     LicenseRequiredError,
     NotFoundError,
@@ -82,6 +83,9 @@ async def create_rental(
     except LicenseRequiredError as exc:
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    except CrewUnavailableError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except InsufficientFundsError as exc:
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

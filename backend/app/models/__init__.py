@@ -1,6 +1,7 @@
 from app.models.aircraft import AircraftType
 from app.models.aircraft_family import AircraftFamily
 from app.models.airport import Airport
+from app.models.crew import UserAirportCrew
 from app.models.flight import FlightStateSample, TrackedFlight, TrackedFlightStatus
 from app.models.item_type import ItemCategory, ItemType
 from app.models.license import UserAircraftFamilyUnlock, UserAirportUnlock
@@ -18,6 +19,7 @@ __all__ = [
     "TrackedFlight",
     "TrackedFlightStatus",
     "UserAircraftFamilyUnlock",
+    "UserAirportCrew",
     "UserAirportUnlock",
     "Rental",
     "RentalStatus",

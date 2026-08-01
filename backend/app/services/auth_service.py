@@ -12,11 +12,16 @@ from app.core.security import (
     hash_refresh_token,
     verify_password,
 )
+from app.models.airport import Airport
+from app.models.crew import UserAirportCrew
 from app.models.user import RefreshToken, User
 from app.models.wallet import LedgerReason
 from app.services.wallet_service import apply_ledger_entry
 
 settings = get_settings()
+
+# Starter crew: matches migration 0019's backfill for pre-existing users.
+STARTER_CREW_AIRPORT_ICAO4 = ("OMDB", "EDDF")
 
 
 async def _issue_token_pair(db: AsyncSession, user: User) -> tuple[str, str]:
@@ -46,6 +51,13 @@ async def signup(db: AsyncSession, email: str, password: str, display_name: str)
     await apply_ledger_entry(
         db, user.id, settings.signup_bonus_credits, LedgerReason.SIGNUP_BONUS
     )
+
+    starter_airports = await db.scalars(
+        select(Airport).where(Airport.icao4.in_(STARTER_CREW_AIRPORT_ICAO4))
+    )
+    for airport in starter_airports:
+        db.add(UserAirportCrew(user_id=user.id, airport_id=airport.id, crew_count=1))
+    await db.flush()
 
     return await _issue_token_pair(db, user)
 

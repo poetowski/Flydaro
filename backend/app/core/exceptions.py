@@ -28,3 +28,7 @@ class LicenseRequiredError(DomainError):
 
 class RentalNotResolvedError(DomainError):
     pass
+
+
+class CrewUnavailableError(DomainError):
+    pass
