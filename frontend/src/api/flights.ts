@@ -30,3 +30,16 @@ export const getFlightBoard = (
 
 export const getFlight = (id: number): Promise<TrackedFlight> =>
   apiRequest<TrackedFlight>(`/flights/${id}`);
+
+export interface FlightSample {
+  observed_at: string;
+  lat: number | null;
+  lon: number | null;
+  baro_altitude: number | null;
+  velocity: number | null;
+  vertical_rate: number | null;
+  on_ground: boolean | null;
+}
+
+export const getFlightSamples = (flightId: number): Promise<FlightSample[]> =>
+  apiRequest<FlightSample[]>(`/flights/${flightId}/samples`);

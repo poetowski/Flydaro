@@ -1,10 +1,10 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import BackgroundTasks
 
 from app.models.aircraft import AircraftType
-from app.models.flight import TrackedFlight, TrackedFlightStatus
-from app.routers.flights import get_flight_board
+from app.models.flight import FlightStateSample, TrackedFlight, TrackedFlightStatus
+from app.routers.flights import get_flight_board, get_flight_samples
 
 
 class FakeAdsbClient:
@@ -128,3 +128,39 @@ async def test_board_schedules_no_background_discovery_when_no_airports_in_scope
         background_tasks=background_tasks, current_user=user, db=db, client=FakeAdsbClient()
     )
     assert len(background_tasks.tasks) == 0
+
+
+async def test_get_flight_samples_returns_ordered_by_observed_at(db, user, open_flight):
+    now = datetime.now(timezone.utc)
+    db.add_all(
+        [
+            FlightStateSample(
+                tracked_flight_id=open_flight.id,
+                observed_at=now,
+                lat=1.0,
+                lon=1.0,
+                baro_altitude=500.0,
+                velocity=100.0,
+                vertical_rate=5.0,
+                on_ground=False,
+            ),
+            FlightStateSample(
+                tracked_flight_id=open_flight.id,
+                observed_at=now - timedelta(minutes=5),
+                lat=0.5,
+                lon=0.5,
+                baro_altitude=100.0,
+                velocity=90.0,
+                vertical_rate=6.0,
+                on_ground=False,
+            ),
+        ]
+    )
+    await db.flush()
+
+    samples = await get_flight_samples(open_flight.id, current_user=user, db=db)
+
+    assert len(samples) == 2
+    assert samples[0].observed_at <= samples[1].observed_at
+    assert samples[0].baro_altitude == 100.0
+    assert samples[1].baro_altitude == 500.0

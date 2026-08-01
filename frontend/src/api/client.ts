@@ -1,4 +1,4 @@
-import { clearTokens, getAccessToken, getRefreshToken, setTokens } from "./tokenStore";
+import { clearTokens, getAccessToken, getRefreshToken, notifyForcedLogout, setTokens } from "./tokenStore";
 
 export const API_BASE_URL: string =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "http://localhost:8000";
@@ -72,6 +72,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       response = await doFetch();
     } else {
       clearTokens();
+      notifyForcedLogout();
     }
   }
 

@@ -35,3 +35,19 @@ export function clearTokens(): void {
   setAccessToken(null);
   setRefreshToken(null);
 }
+
+// A forced logout (refresh token expired/rejected) happens deep inside
+// api/client.ts, outside React -- this lets AuthContext learn about it and
+// flip isAuthenticated so RequireAuth redirects to /login, instead of the
+// UI silently sitting on stale "authenticated" state after clearTokens().
+type ForcedLogoutListener = () => void;
+const forcedLogoutListeners = new Set<ForcedLogoutListener>();
+
+export function onForcedLogout(listener: ForcedLogoutListener): () => void {
+  forcedLogoutListeners.add(listener);
+  return () => forcedLogoutListeners.delete(listener);
+}
+
+export function notifyForcedLogout(): void {
+  forcedLogoutListeners.forEach((listener) => listener());
+}

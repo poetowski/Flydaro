@@ -8,9 +8,9 @@ from app.core.dependencies import get_adsb_client
 from app.core.security import get_current_user
 from app.db.session import DirectSessionLocal, get_db
 from app.models.airport import Airport
-from app.models.flight import TrackedFlight, TrackedFlightStatus
+from app.models.flight import FlightStateSample, TrackedFlight, TrackedFlightStatus
 from app.models.user import User
-from app.schemas.flight import TrackedFlightOut
+from app.schemas.flight import FlightStateSampleOut, TrackedFlightOut
 from app.services import flight_discovery_service, license_service
 from app.worker.adsb_client import AdsbClient
 
@@ -109,3 +109,17 @@ async def get_flight(
     if flight is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Flight not found")
     return flight
+
+
+@router.get("/{flight_id}/samples", response_model=list[FlightStateSampleOut])
+async def get_flight_samples(
+    flight_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[FlightStateSample]:
+    result = await db.scalars(
+        select(FlightStateSample)
+        .where(FlightStateSample.tracked_flight_id == flight_id)
+        .order_by(FlightStateSample.observed_at)
+    )
+    return list(result.all())

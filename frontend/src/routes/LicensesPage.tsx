@@ -4,18 +4,25 @@ import { listAircraftFamilies, type AircraftFamily } from "../api/aircraftFamili
 import { listAirports, type Airport } from "../api/airports";
 import { ApiError } from "../api/client";
 import { unlockAircraftFamily, unlockAirport } from "../api/licenses";
+import { Modal } from "../components/Modal";
+import { useToast } from "../lib/ToastContext";
 
 export function LicensesPage() {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const [error, setError] = useState<string | null>(null);
+  const [confirmingAirport, setConfirmingAirport] = useState<Airport | null>(null);
+  const [confirmingFamily, setConfirmingFamily] = useState<AircraftFamily | null>(null);
 
   const {
     data: airports,
+    isLoading: airportsIsLoading,
     isError: airportsIsError,
     error: airportsError,
   } = useQuery({ queryKey: ["airports"], queryFn: listAirports });
   const {
     data: aircraftFamilies,
+    isLoading: aircraftFamiliesIsLoading,
     isError: aircraftFamiliesIsError,
     error: aircraftFamiliesError,
   } = useQuery({
@@ -34,20 +41,24 @@ export function LicensesPage() {
 
   const unlockAirportMutation = useMutation({
     mutationFn: unlockAirport,
-    onSuccess: () => {
+    onSuccess: (airport) => {
       setError(null);
+      setConfirmingAirport(null);
       queryClient.invalidateQueries({ queryKey: ["wallet"] });
       queryClient.invalidateQueries({ queryKey: ["airports"] });
+      showToast(`Unlocked ${airport.name}`);
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Could not unlock airport"),
   });
 
   const unlockAircraftFamilyMutation = useMutation({
     mutationFn: unlockAircraftFamily,
-    onSuccess: () => {
+    onSuccess: (family) => {
       setError(null);
+      setConfirmingFamily(null);
       queryClient.invalidateQueries({ queryKey: ["wallet"] });
       queryClient.invalidateQueries({ queryKey: ["aircraft-families"] });
+      showToast(`Unlocked ${family.name}`);
     },
     onError: (err) =>
       setError(err instanceof ApiError ? err.message : "Could not unlock aircraft family"),
@@ -60,6 +71,7 @@ export function LicensesPage() {
 
       <section className="card">
         <h2>Airport Licenses</h2>
+        {airportsIsLoading && <p>Loading airports...</p>}
         {airportsIsError && (
           <p className="form-error">
             Could not load airports:{" "}
@@ -77,7 +89,7 @@ export function LicensesPage() {
                 <span className="badge badge-unlocked">Unlocked</span>
               ) : (
                 <button
-                  onClick={() => unlockAirportMutation.mutate(airport.id)}
+                  onClick={() => setConfirmingAirport(airport)}
                   disabled={unlockAirportMutation.isPending}
                 >
                   Unlock ({airport.unlock_cost_credits} cr)
@@ -90,6 +102,7 @@ export function LicensesPage() {
 
       <section className="card">
         <h2>Pilot Licenses</h2>
+        {aircraftFamiliesIsLoading && <p>Loading aircraft licenses...</p>}
         {aircraftFamiliesIsError && (
           <p className="form-error">
             Could not load aircraft licenses:{" "}
@@ -109,7 +122,7 @@ export function LicensesPage() {
                 <span className="badge badge-unlocked">Unlocked</span>
               ) : (
                 <button
-                  onClick={() => unlockAircraftFamilyMutation.mutate(family.id)}
+                  onClick={() => setConfirmingFamily(family)}
                   disabled={unlockAircraftFamilyMutation.isPending}
                 >
                   Unlock ({family.unlock_cost_credits} cr)
@@ -119,6 +132,44 @@ export function LicensesPage() {
           ))}
         </ul>
       </section>
+
+      {confirmingAirport && (
+        <Modal title="Confirm airport license" onClose={() => setConfirmingAirport(null)}>
+          <p>
+            Unlock <strong>{confirmingAirport.name}</strong> ({confirmingAirport.icao4}) for{" "}
+            <strong>{confirmingAirport.unlock_cost_credits} credits</strong>?
+          </p>
+          <div className="modal-row" style={{ justifyContent: "flex-end", gap: 8 }}>
+            <button onClick={() => setConfirmingAirport(null)}>Cancel</button>
+            <button
+              className="button"
+              disabled={unlockAirportMutation.isPending}
+              onClick={() => unlockAirportMutation.mutate(confirmingAirport.id)}
+            >
+              {unlockAirportMutation.isPending ? "Unlocking..." : "Confirm"}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {confirmingFamily && (
+        <Modal title="Confirm pilot license" onClose={() => setConfirmingFamily(null)}>
+          <p>
+            Unlock <strong>{confirmingFamily.name}</strong> for{" "}
+            <strong>{confirmingFamily.unlock_cost_credits} credits</strong>?
+          </p>
+          <div className="modal-row" style={{ justifyContent: "flex-end", gap: 8 }}>
+            <button onClick={() => setConfirmingFamily(null)}>Cancel</button>
+            <button
+              className="button"
+              disabled={unlockAircraftFamilyMutation.isPending}
+              onClick={() => unlockAircraftFamilyMutation.mutate(confirmingFamily.id)}
+            >
+              {unlockAircraftFamilyMutation.isPending ? "Unlocking..." : "Confirm"}
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

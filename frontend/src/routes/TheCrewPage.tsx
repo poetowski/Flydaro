@@ -3,18 +3,24 @@ import { useState } from "react";
 import { listAirports, type Airport } from "../api/airports";
 import { ApiError } from "../api/client";
 import { getCrewOverview, hireCrew } from "../api/crew";
+import { Modal } from "../components/Modal";
+import { useToast } from "../lib/ToastContext";
 
 export function TheCrewPage() {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const [error, setError] = useState<string | null>(null);
+  const [confirmingAirport, setConfirmingAirport] = useState<Airport | null>(null);
 
   const {
     data: airports,
+    isLoading: airportsIsLoading,
     isError: airportsIsError,
     error: airportsError,
   } = useQuery({ queryKey: ["airports"], queryFn: listAirports });
   const {
     data: crewOverview,
+    isLoading: crewIsLoading,
     isError: crewIsError,
     error: crewError,
   } = useQuery({ queryKey: ["crew"], queryFn: getCrewOverview });
@@ -32,10 +38,12 @@ export function TheCrewPage() {
 
   const hireCrewMutation = useMutation({
     mutationFn: hireCrew,
-    onSuccess: () => {
+    onSuccess: (crew) => {
       setError(null);
+      setConfirmingAirport(null);
       queryClient.invalidateQueries({ queryKey: ["wallet"] });
       queryClient.invalidateQueries({ queryKey: ["crew"] });
+      showToast(`Crew hired at ${crew.icao4} -- ${crew.free_count} now free`);
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Could not hire crew"),
   });
@@ -48,6 +56,7 @@ export function TheCrewPage() {
         duration of each rental originating there. Hire more to run rentals in parallel.
       </p>
       {error && <p className="form-error">{error}</p>}
+      {(airportsIsLoading || crewIsLoading) && <p>Loading crew...</p>}
       {airportsIsError && (
         <p className="form-error">
           Could not load airports:{" "}
@@ -96,7 +105,7 @@ export function TheCrewPage() {
                   <span className="badge">Unlock this airport first</span>
                 ) : (
                   <button
-                    onClick={() => hireCrewMutation.mutate(airport.id)}
+                    onClick={() => setConfirmingAirport(airport)}
                     disabled={hireCrewMutation.isPending}
                   >
                     Hire crew ({crew?.next_hire_cost ?? "..."} cr)
@@ -107,6 +116,26 @@ export function TheCrewPage() {
           })}
         </ul>
       </section>
+
+      {confirmingAirport && (
+        <Modal title="Confirm crew hire" onClose={() => setConfirmingAirport(null)}>
+          <p>
+            Hire a new crew member at <strong>{confirmingAirport.name}</strong> (
+            {confirmingAirport.icao4}) for{" "}
+            <strong>{crewByAirportId.get(confirmingAirport.id)?.next_hire_cost ?? "..."} credits</strong>?
+          </p>
+          <div className="modal-row" style={{ justifyContent: "flex-end", gap: 8 }}>
+            <button onClick={() => setConfirmingAirport(null)}>Cancel</button>
+            <button
+              className="button"
+              disabled={hireCrewMutation.isPending}
+              onClick={() => hireCrewMutation.mutate(confirmingAirport.id)}
+            >
+              {hireCrewMutation.isPending ? "Hiring..." : "Confirm"}
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

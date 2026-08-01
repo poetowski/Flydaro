@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import * as authApi from "../api/auth";
-import { getAccessToken, getRefreshToken } from "../api/tokenStore";
+import { getAccessToken, getRefreshToken, onForcedLogout } from "../api/tokenStore";
 
 interface AuthContextValue {
   isAuthenticated: boolean;
@@ -22,6 +22,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // refreshes on the first request's 401.
     setIsAuthenticated(Boolean(getAccessToken() || getRefreshToken()));
     setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    // A refresh-token rejection deep inside api/client.ts calls this outside
+    // of any component -- without this subscription, isAuthenticated would
+    // stay stale and RequireAuth would never redirect to /login.
+    return onForcedLogout(() => setIsAuthenticated(false));
   }, []);
 
   async function login(email: string, password: string) {

@@ -8,6 +8,7 @@ import { DashboardPage } from "./routes/DashboardPage";
 import { FlightBoardPage } from "./routes/FlightBoardPage";
 import { LicensesPage } from "./routes/LicensesPage";
 import { LoginPage } from "./routes/LoginPage";
+import { NotFoundPage } from "./routes/NotFoundPage";
 import { OurStoryPage } from "./routes/OurStoryPage";
 import { SignupPage } from "./routes/SignupPage";
 import { TheCrewPage } from "./routes/TheCrewPage";
@@ -35,4 +36,5 @@ export const router = createBrowserRouter([
       },
     ],
   },
+  { path: "*", element: <NotFoundPage /> },
 ]);

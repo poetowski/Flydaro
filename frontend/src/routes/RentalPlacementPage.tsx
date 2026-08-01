@@ -5,14 +5,22 @@ import { createRental } from "../api/rentals";
 import { listItemTypes } from "../api/itemTypes";
 import { ApiError } from "../api/client";
 import { getFlight } from "../api/flights";
+import { Modal } from "../components/Modal";
+import { useToast } from "../lib/ToastContext";
 
 export function RentalPlacementPage() {
   const { flightId } = useParams<{ flightId: string }>();
   const numericFlightId = Number(flightId);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
-  const { data: flight } = useQuery({
+  const {
+    data: flight,
+    isLoading: flightIsLoading,
+    isError: flightIsError,
+    error: flightError,
+  } = useQuery({
     queryKey: ["flights", numericFlightId],
     queryFn: () => getFlight(numericFlightId),
   });
@@ -22,10 +30,11 @@ export function RentalPlacementPage() {
   const [rentalFee, setRentalFee] = useState(100);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   const selectedItem = itemTypes?.find((item) => item.id === itemTypeId);
 
-  async function handleSubmit(event: FormEvent) {
+  function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (itemTypeId === null) {
       setError("Pick an item type first");
@@ -36,20 +45,38 @@ export function RentalPlacementPage() {
       return;
     }
     setError(null);
+    setConfirming(true);
+  }
+
+  async function confirmAndSubmit() {
+    if (itemTypeId === null) return;
     setSubmitting(true);
     try {
       await createRental(numericFlightId, itemTypeId, rentalFee);
       await queryClient.invalidateQueries({ queryKey: ["wallet"] });
       await queryClient.invalidateQueries({ queryKey: ["rentals", "mine"] });
+      showToast("Capacity rented!");
       navigate("/rentals");
     } catch (err) {
+      setConfirming(false);
       setError(err instanceof ApiError ? err.message : "Could not rent capacity");
     } finally {
       setSubmitting(false);
     }
   }
 
-  if (!flight) return <p className="page">Loading flight...</p>;
+  if (flightIsError) {
+    return (
+      <div className="page">
+        <h1>Could not load this flight</h1>
+        <p className="form-error">
+          {flightError instanceof ApiError ? flightError.message : "unknown error"}
+        </p>
+      </div>
+    );
+  }
+
+  if (flightIsLoading || !flight) return <p className="page">Loading flight...</p>;
 
   if (!flight.capacity_open) {
     return (
@@ -103,6 +130,22 @@ export function RentalPlacementPage() {
           {submitting ? "Renting capacity..." : "Rent capacity"}
         </button>
       </form>
+
+      {confirming && selectedItem && (
+        <Modal title="Confirm rental" onClose={() => setConfirming(false)}>
+          <p>
+            Rent capacity on <strong>{flight.callsign ?? flight.icao24}</strong> for{" "}
+            <strong>{selectedItem.name}</strong> at a fee of{" "}
+            <strong>{rentalFee} credits</strong>?
+          </p>
+          <div className="modal-row" style={{ justifyContent: "flex-end", gap: 8 }}>
+            <button onClick={() => setConfirming(false)}>Cancel</button>
+            <button className="button" disabled={submitting} onClick={confirmAndSubmit}>
+              {submitting ? "Renting..." : "Confirm"}
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

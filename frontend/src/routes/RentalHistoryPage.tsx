@@ -3,11 +3,13 @@ import { useState } from "react";
 import { listAircraftTypes } from "../api/aircraftTypes";
 import { listAirports } from "../api/airports";
 import { ApiError } from "../api/client";
-import { getFlight } from "../api/flights";
+import { getFlight, getFlightSamples } from "../api/flights";
 import { listItemTypes } from "../api/itemTypes";
 import { claimRental, listMyRentals, type Rental } from "../api/rentals";
+import { FlightTraceChart, type FlightTracePoint } from "../components/FlightTraceChart";
 import { Modal } from "../components/Modal";
 import { familyBadgeLabel } from "../lib/familyLabel";
+import { useToast } from "../lib/ToastContext";
 
 const STATUS_LABELS: Record<string, string> = {
   FLYING: "Flying (open for rentals)",
@@ -28,12 +30,19 @@ function RentalDetailModal({ rental, onClose }: { rental: Rental; onClose: () =>
     queryKey: ["aircraft-types"],
     queryFn: listAircraftTypes,
   });
+  const { data: samples } = useQuery({
+    queryKey: ["flights", rental.tracked_flight_id, "samples"],
+    queryFn: () => getFlightSamples(rental.tracked_flight_id),
+  });
 
   const itemType = itemTypes?.find((t) => t.id === rental.item_type_id);
   const airport = flight ? airports?.find((a) => a.id === flight.origin_airport_id) : undefined;
   const aircraftType = flight?.aircraft_type_id
     ? aircraftTypes?.find((t) => t.id === flight.aircraft_type_id)
     : undefined;
+  const tracePoints: FlightTracePoint[] = (samples ?? [])
+    .filter((s): s is typeof s & { baro_altitude: number } => s.baro_altitude !== null)
+    .map((s) => ({ date: new Date(s.observed_at), altitude: s.baro_altitude }));
 
   return (
     <Modal title={rental.display_code} onClose={onClose}>
@@ -101,12 +110,16 @@ function RentalDetailModal({ rental, onClose }: { rental: Rental; onClose: () =>
           </div>
         </>
       )}
+
+      <h3>Flight Trace</h3>
+      <FlightTraceChart points={tracePoints} />
     </Modal>
   );
 }
 
 export function RentalHistoryPage() {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const [selectedRental, setSelectedRental] = useState<Rental | null>(null);
   const { data: rentals, isLoading } = useQuery({
     queryKey: ["rentals", "mine"],
@@ -114,7 +127,10 @@ export function RentalHistoryPage() {
   });
   const claimMutation = useMutation({
     mutationFn: claimRental,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["rentals", "mine"] }),
+    onSuccess: (rental) => {
+      queryClient.invalidateQueries({ queryKey: ["rentals", "mine"] });
+      showToast(`Reward claimed: ${rental.settlement_credits} credits`);
+    },
   });
 
   return (

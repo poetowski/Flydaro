@@ -109,6 +109,14 @@ select {
   color: var(--accent-contrast);
 }
 
+.badge-reward-ready {
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--warning);
+  color: var(--warning-contrast);
+}
+
 .app-main {
   flex: 1;
   width: 100%;
@@ -584,4 +592,24 @@ button:disabled {
 
 .modal-row-label {
   color: var(--text-muted);
+}
+
+.toast-stack {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 200;
+}
+
+.toast {
+  background: var(--card-bg);
+  border: 1px solid var(--success);
+  color: var(--success);
+  border-radius: 8px;
+  padding: 10px 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font-weight: 600;
 }

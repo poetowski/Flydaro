@@ -20,3 +20,15 @@ class TrackedFlightOut(BaseModel):
     last_seen_alt: float | None
     resolved_at: datetime | None
     resolution_summary: dict | None
+
+
+class FlightStateSampleOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    observed_at: datetime
+    lat: float | None
+    lon: float | None
+    baro_altitude: float | None
+    velocity: float | None
+    vertical_rate: float | None
+    on_ground: bool | None
