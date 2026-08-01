@@ -6,6 +6,7 @@ import { listAircraftTypes } from "../api/aircraftTypes";
 import { listAirports } from "../api/airports";
 import { ApiError } from "../api/client";
 import { getFlightBoard } from "../api/flights";
+import { familyBadgeLabel } from "../lib/familyLabel";
 
 const STATUS_LABELS: Record<string, string> = {
   AIRBORNE_OPEN: "Just took off -- capacity open to rent",
@@ -61,6 +62,12 @@ export function FlightBoardPage() {
   const unlockedAirports = airports?.filter((airport) => airport.unlocked) ?? [];
   const unlockedAircraftFamilies = aircraftFamilies?.filter((family) => family.unlocked) ?? [];
   const aircraftTypeById = new Map((aircraftTypes ?? []).map((type) => [type.id, type]));
+  const airportById = new Map((airports ?? []).map((airport) => [airport.id, airport]));
+  const familyCodeByTypeId = new Map(
+    (aircraftFamilies ?? []).flatMap((family) =>
+      family.member_types.map((type) => [type.id, family.code] as const),
+    ),
+  );
 
   return (
     <div className="page">
@@ -145,6 +152,10 @@ export function FlightBoardPage() {
           const aircraftType = flight.aircraft_type_id
             ? aircraftTypeById.get(flight.aircraft_type_id)
             : undefined;
+          const airport = airportById.get(flight.origin_airport_id);
+          const familyCode = flight.aircraft_type_id
+            ? familyCodeByTypeId.get(flight.aircraft_type_id)
+            : undefined;
           const canRent = flight.capacity_open;
           return (
             <li key={flight.id} className="flight-card">
@@ -153,6 +164,14 @@ export function FlightBoardPage() {
                 <span className="flight-status">
                   {STATUS_LABELS[flight.status] ?? flight.status}
                 </span>
+              </div>
+              <div>
+                {airport && <span className="badge badge-airport">{airport.icao4}</span>}
+                {familyCode && (
+                  <span className="badge badge-family" style={{ marginLeft: 6 }}>
+                    {familyBadgeLabel(familyCode)}
+                  </span>
+                )}
               </div>
               <div className="flight-meta">
                 {aircraftType ? aircraftType.name : "Unknown aircraft type"}

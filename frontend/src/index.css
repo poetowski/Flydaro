@@ -8,6 +8,8 @@
   --accent-contrast: #ffffff;
   --success: #1a9a5b;
   --danger: #c0392b;
+  --warning: #b45309;
+  --warning-contrast: #ffffff;
 
   color-scheme: light dark;
   font: 16px/1.5 system-ui, "Segoe UI", Roboto, sans-serif;
@@ -24,6 +26,8 @@
     --border: #2e303a;
     --accent: #a684ff;
     --accent-contrast: #14151a;
+    --warning: #fbbf24;
+    --warning-contrast: #14151a;
   }
 }
 
@@ -282,9 +286,30 @@ button:disabled {
   background: var(--border);
 }
 
+.rental-status-pending {
+  background: var(--border);
+  color: var(--text-muted);
+}
+
+.rental-status-in_progress {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.rental-status-resolving {
+  background: var(--warning);
+  color: var(--warning-contrast);
+}
+
 .rental-status-resolved {
   background: var(--success);
   color: #fff;
+}
+
+.rental-status-claimed {
+  background: transparent;
+  border: 1px solid var(--success);
+  color: var(--success);
 }
 
 .board-filters {
@@ -332,6 +357,19 @@ button:disabled {
 .badge-danger {
   background: var(--danger);
   color: #fff;
+}
+
+.badge-airport {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.badge-family {
+  background: var(--border);
+  color: var(--text);
+  font-weight: 600;
 }
 
 .ledger-list {

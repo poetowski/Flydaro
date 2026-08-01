@@ -23,6 +23,22 @@ from app.worker.adsb_client import AdsbClient
 router = APIRouter(prefix="/rentals", tags=["rentals"])
 
 
+async def _to_rental_out(db: AsyncSession, rentals: list[Rental]) -> list[RentalOut]:
+    display_info = await rental_service.get_display_info_for_rentals(db, [r.id for r in rentals])
+    out = []
+    for rental in rentals:
+        airport_code, family_code = display_info.get(rental.id, (None, None))
+        out.append(
+            RentalOut.model_validate(rental).model_copy(
+                update={
+                    "origin_airport_code": airport_code,
+                    "aircraft_family_code": family_code,
+                }
+            )
+        )
+    return out
+
+
 async def _refresh_flights_for(db: AsyncSession, client: AdsbClient, rentals: list[Rental]) -> None:
     """The actual reward gate: before returning any non-resolved rental,
     explicitly ask adsb.fi (live state) whether its flight has landed,
@@ -73,7 +89,7 @@ async def create_rental(
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     await db.commit()
-    return rental
+    return (await _to_rental_out(db, [rental]))[0]
 
 
 @router.get("/mine", response_model=list[RentalOut])
@@ -82,7 +98,7 @@ async def list_my_rentals(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     client: AdsbClient = Depends(get_adsb_client),
-) -> list[Rental]:
+) -> list[RentalOut]:
     parsed_status = None
     if status_filter is not None:
         try:
@@ -93,7 +109,7 @@ async def list_my_rentals(
             ) from exc
     rentals = await rental_service.list_rentals_for_user(db, current_user.id, parsed_status)
     await _refresh_flights_for(db, client, rentals)
-    return rentals
+    return await _to_rental_out(db, rentals)
 
 
 @router.get("/{rental_id}", response_model=RentalOut)
@@ -102,13 +118,13 @@ async def get_rental(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     client: AdsbClient = Depends(get_adsb_client),
-) -> Rental:
+) -> RentalOut:
     try:
         rental = await rental_service.get_rental_for_user(db, current_user.id, rental_id)
     except NotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     await _refresh_flights_for(db, client, [rental])
-    return rental
+    return (await _to_rental_out(db, [rental]))[0]
 
 
 @router.post("/{rental_id}/claim", response_model=RentalOut)
@@ -116,7 +132,7 @@ async def claim_rental(
     rental_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> Rental:
+) -> RentalOut:
     try:
         rental = await rental_service.claim_rental(db, current_user.id, rental_id)
     except NotFoundError as exc:
@@ -124,4 +140,4 @@ async def claim_rental(
     except (RentalNotResolvedError, ConflictError) as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     await db.commit()
-    return rental
+    return (await _to_rental_out(db, [rental]))[0]

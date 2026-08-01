@@ -13,6 +13,8 @@ from app.core.exceptions import (
     NotFoundError,
     RentalNotResolvedError,
 )
+from app.models.aircraft import AircraftType
+from app.models.aircraft_family import AircraftFamily
 from app.models.airport import Airport
 from app.models.flight import TrackedFlight, TrackedFlightStatus
 from app.models.item_type import ItemType
@@ -114,6 +116,30 @@ async def list_rentals_for_user(
         stmt = stmt.where(Rental.status == status)
     result = await db.scalars(stmt)
     return list(result.all())
+
+
+async def get_display_info_for_rentals(
+    db: AsyncSession, rental_ids: list[int]
+) -> dict[int, tuple[str | None, str | None]]:
+    """Maps rental_id -> (origin_airport_code, aircraft_family_code) via one
+    join query -- avoids an N+1 per-rental lookup when the API needs this for
+    display (e.g. the frontend's origin-airport/aircraft-family ribbons).
+    Both are None if the underlying flight's aircraft type never resolved a
+    family (shouldn't happen for a real rental, since creating one requires
+    an unlocked family, but the join is a plain LEFT JOIN so it degrades to
+    None rather than dropping the row)."""
+    if not rental_ids:
+        return {}
+    stmt = (
+        select(Rental.id, Airport.icao4, AircraftFamily.code)
+        .join(TrackedFlight, TrackedFlight.id == Rental.tracked_flight_id)
+        .join(Airport, Airport.id == TrackedFlight.origin_airport_id)
+        .outerjoin(AircraftType, AircraftType.id == TrackedFlight.aircraft_type_id)
+        .outerjoin(AircraftFamily, AircraftFamily.id == AircraftType.family_id)
+        .where(Rental.id.in_(rental_ids))
+    )
+    result = await db.execute(stmt)
+    return {rental_id: (airport_code, family_code) for rental_id, airport_code, family_code in result.all()}
 
 
 async def lock_capacity(db: AsyncSession, flight: TrackedFlight) -> None:

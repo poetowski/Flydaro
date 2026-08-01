@@ -24,3 +24,8 @@ class RentalOut(BaseModel):
     settlement_breakdown: dict | None
     resolution_reason: str | None
     claimed_at: datetime | None
+    # Populated by the router via rental_service.get_display_info_for_rentals
+    # -- not present on the Rental ORM model itself, hence the default so
+    # RentalOut.model_validate(rental) still succeeds before it's overlaid.
+    origin_airport_code: str | None = None
+    aircraft_family_code: str | None = None

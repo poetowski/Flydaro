@@ -13,6 +13,8 @@ export interface Rental {
   settlement_breakdown: Record<string, unknown> | null;
   resolution_reason: string | null;
   claimed_at: string | null;
+  origin_airport_code: string | null;
+  aircraft_family_code: string | null;
 }
 
 export const createRental = (

@@ -7,6 +7,7 @@ import { getFlight } from "../api/flights";
 import { listItemTypes } from "../api/itemTypes";
 import { claimRental, listMyRentals, type Rental } from "../api/rentals";
 import { Modal } from "../components/Modal";
+import { familyBadgeLabel } from "../lib/familyLabel";
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING: "Pending departure",
@@ -135,6 +136,16 @@ export function RentalHistoryPage() {
               <span className={`rental-status rental-status-${rental.status.toLowerCase()}`}>
                 {rental.status}
               </span>
+            </div>
+            <div>
+              {rental.origin_airport_code && (
+                <span className="badge badge-airport">{rental.origin_airport_code}</span>
+              )}
+              {rental.aircraft_family_code && (
+                <span className="badge badge-family" style={{ marginLeft: 6 }}>
+                  {familyBadgeLabel(rental.aircraft_family_code)}
+                </span>
+              )}
             </div>
             <div>Rental fee: {rental.rental_fee_credits} credits</div>
             {rental.status === "RESOLVED" && (
