@@ -1,16 +1,20 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+import logging
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_adsb_client
 from app.core.security import get_current_user
-from app.db.session import get_db
+from app.db.session import DirectSessionLocal, get_db
 from app.models.airport import Airport
 from app.models.flight import TrackedFlight, TrackedFlightStatus
 from app.models.user import User
 from app.schemas.flight import TrackedFlightOut
 from app.services import flight_discovery_service, license_service
 from app.worker.adsb_client import AdsbClient
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/flights", tags=["flights"])
 
@@ -21,8 +25,23 @@ OPEN_BOARD_STATUSES = (
 )
 
 
+async def _refresh_board_background(airport_ids: set[int], client: AdsbClient) -> None:
+    """Runs after the response is already sent -- needs its own DB session
+    (the request's is closed by the time background tasks run), but shares
+    the same singleton AdsbClient so its 1 req/sec rate-limit gate still
+    applies globally, exactly as it does for every other caller."""
+    try:
+        async with DirectSessionLocal() as bg_db:
+            airports = list(await bg_db.scalars(select(Airport).where(Airport.id.in_(airport_ids))))
+            await flight_discovery_service.refresh_board_for_airports(bg_db, client, airports)
+            await bg_db.commit()
+    except Exception:
+        logger.exception("Background board discovery failed")
+
+
 @router.get("/board", response_model=list[TrackedFlightOut])
 async def get_flight_board(
+    background_tasks: BackgroundTasks,
     airport_id: int | None = None,
     aircraft_family_id: int | None = None,
     status_filter: str | None = None,
@@ -33,15 +52,17 @@ async def get_flight_board(
     unlocked_airport_ids = await license_service.get_unlocked_airport_ids(db, current_user.id)
     unlocked_type_ids = await license_service.get_unlocked_aircraft_type_ids(db, current_user.id)
 
-    # Ad-hoc discovery: no background poller exists, so this request itself
-    # is what looks for new flights and advances/resolves existing ones at
-    # the airports actually in scope, before the DB query below reads back
-    # the (now possibly updated) result set.
+    # Ad-hoc discovery: no background poller exists, so something has to
+    # look for new flights and advance/resolve existing ones at the
+    # airports actually in scope. Deferred to a background task (runs after
+    # the response is sent) rather than awaited here -- the response reads
+    # whatever's already committed, so page loads never block on adsb.fi's
+    # ~1 req/sec rate limit. refresh_board_for_airports itself already
+    # no-ops for any airport whose last_polled_at isn't stale yet, so
+    # scheduling this unconditionally is cheap and correct.
     scope_airport_ids = unlocked_airport_ids if airport_id is None else (unlocked_airport_ids & {airport_id})
     if scope_airport_ids:
-        airports = list(await db.scalars(select(Airport).where(Airport.id.in_(scope_airport_ids))))
-        await flight_discovery_service.refresh_board_for_airports(db, client, airports)
-        await db.commit()
+        background_tasks.add_task(_refresh_board_background, scope_airport_ids, client)
 
     # Floor, not just a UI convenience: applied unconditionally, regardless
     # of whether airport_id/aircraft_family_id narrow further below, so a

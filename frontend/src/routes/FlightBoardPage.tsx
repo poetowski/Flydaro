@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listAircraftFamilies } from "../api/aircraftFamilies";
 import { listAircraftTypes } from "../api/aircraftTypes";
@@ -13,6 +13,15 @@ const STATUS_LABELS: Record<string, string> = {
   AIRBORNE_LOCKED: "In flight -- capacity closed",
   LANDING_SUSPECTED: "Landing...",
 };
+
+// Discovery for airports due a fresh check now runs in the background
+// after GET /flights/board returns (see backend/app/routers/flights.py),
+// so this request's own response reflects whatever was already known --
+// a flight the background pass just found wouldn't show up until the
+// *next* fetch. One extra refetch a few seconds later -- generous for a
+// couple of adsb.fi calls under its ~1 req/sec pacing -- picks it up
+// without the user needing to press Refresh twice.
+const FOLLOW_UP_REFETCH_DELAY_MS = 4000;
 
 export function FlightBoardPage() {
   const queryClient = useQueryClient();
@@ -58,6 +67,18 @@ export function FlightBoardPage() {
     // when this request is actually made -- loading the page, changing a
     // filter, or pressing Refresh below, not on a timer from every open tab.
   });
+
+  function scheduleFollowUpRefetch(): ReturnType<typeof setTimeout> {
+    return setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: boardQueryKey });
+    }, FOLLOW_UP_REFETCH_DELAY_MS);
+  }
+
+  useEffect(() => {
+    const timeoutId = scheduleFollowUpRefetch();
+    return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [airportId, aircraftFamilyId]);
 
   const unlockedAirports = airports?.filter((airport) => airport.unlocked) ?? [];
   const unlockedAircraftFamilies = aircraftFamilies?.filter((family) => family.unlocked) ?? [];
@@ -123,7 +144,10 @@ export function FlightBoardPage() {
         <button
           className="button"
           disabled={isFetching}
-          onClick={() => queryClient.invalidateQueries({ queryKey: boardQueryKey })}
+          onClick={() => {
+            queryClient.invalidateQueries({ queryKey: boardQueryKey });
+            scheduleFollowUpRefetch();
+          }}
         >
           {isFetching ? "Refreshing..." : "Refresh"}
         </button>

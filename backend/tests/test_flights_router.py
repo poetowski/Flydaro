@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+from fastapi import BackgroundTasks
+
 from app.models.aircraft import AircraftType
 from app.models.flight import TrackedFlight, TrackedFlightStatus
 from app.routers.flights import get_flight_board
@@ -19,7 +21,9 @@ async def test_board_excludes_flights_with_locked_aircraft_type(
     open_flight.aircraft_type_id = locked_aircraft_type.id
     await db.flush()
 
-    result = await get_flight_board(current_user=user, db=db, client=FakeAdsbClient())
+    result = await get_flight_board(
+        background_tasks=BackgroundTasks(), current_user=user, db=db, client=FakeAdsbClient()
+    )
     assert open_flight.id not in [f.id for f in result]
 
 
@@ -32,6 +36,7 @@ async def test_board_aircraft_family_id_param_on_locked_family_returns_empty(
     # Proves the param composes on top of the unlocked-families floor rather
     # than bypassing it -- before this change, this call returned the flight.
     result = await get_flight_board(
+        background_tasks=BackgroundTasks(),
         aircraft_family_id=locked_aircraft_family.id,
         current_user=user,
         db=db,
@@ -44,14 +49,18 @@ async def test_board_excludes_flights_at_locked_airport(db, user, open_flight, l
     open_flight.origin_airport_id = locked_airport.id
     await db.flush()
 
-    result = await get_flight_board(current_user=user, db=db, client=FakeAdsbClient())
+    result = await get_flight_board(
+        background_tasks=BackgroundTasks(), current_user=user, db=db, client=FakeAdsbClient()
+    )
     assert open_flight.id not in [f.id for f in result]
 
 
 async def test_board_includes_flight_with_unlocked_airport_and_aircraft_type(
     db, user, open_flight
 ):
-    result = await get_flight_board(current_user=user, db=db, client=FakeAdsbClient())
+    result = await get_flight_board(
+        background_tasks=BackgroundTasks(), current_user=user, db=db, client=FakeAdsbClient()
+    )
     assert open_flight.id in [f.id for f in result]
 
 
@@ -91,8 +100,31 @@ async def test_board_family_filter_expands_across_member_types(
     await db.flush()
 
     result = await get_flight_board(
-        aircraft_family_id=aircraft_family.id, current_user=user, db=db, client=FakeAdsbClient()
+        background_tasks=BackgroundTasks(),
+        aircraft_family_id=aircraft_family.id,
+        current_user=user,
+        db=db,
+        client=FakeAdsbClient(),
     )
     result_ids = {f.id for f in result}
     assert open_flight.id in result_ids
     assert other_flight.id in result_ids
+
+
+async def test_board_schedules_background_discovery_when_airports_in_scope(db, user, airport):
+    background_tasks = BackgroundTasks()
+    await get_flight_board(
+        background_tasks=background_tasks, current_user=user, db=db, client=FakeAdsbClient()
+    )
+    # Discovery is deferred to run after the response, not awaited inline --
+    # this is what keeps the board's own response fast regardless of how
+    # many airports need a fresh adsb.fi check.
+    assert len(background_tasks.tasks) == 1
+
+
+async def test_board_schedules_no_background_discovery_when_no_airports_in_scope(db, user):
+    background_tasks = BackgroundTasks()
+    await get_flight_board(
+        background_tasks=background_tasks, current_user=user, db=db, client=FakeAdsbClient()
+    )
+    assert len(background_tasks.tasks) == 0
