@@ -5,6 +5,7 @@ import { listAircraftFamilies } from "../api/aircraftFamilies";
 import { listAircraftTypes } from "../api/aircraftTypes";
 import { listAirports } from "../api/airports";
 import { ApiError } from "../api/client";
+import { getCrewOverview } from "../api/crew";
 import { getFlightBoard } from "../api/flights";
 import { familyBadgeLabel } from "../lib/familyLabel";
 
@@ -27,6 +28,7 @@ export function FlightBoardPage() {
   const queryClient = useQueryClient();
   const [airportId, setAirportId] = useState<number | "all">("all");
   const [aircraftFamilyId, setAircraftFamilyId] = useState<number | "all">("all");
+  const [showOnlyIdleCrew, setShowOnlyIdleCrew] = useState(false);
 
   const {
     data: airports,
@@ -49,6 +51,8 @@ export function FlightBoardPage() {
     queryKey: ["aircraft-types"],
     queryFn: listAircraftTypes,
   });
+  // Same query key TheCrewPage uses -- shares the cache across both pages.
+  const { data: crewOverview } = useQuery({ queryKey: ["crew"], queryFn: getCrewOverview });
   const boardQueryKey = ["flights", "board", airportId, aircraftFamilyId];
   const {
     data: flights,
@@ -88,6 +92,12 @@ export function FlightBoardPage() {
     (aircraftFamilies ?? []).flatMap((family) =>
       family.member_types.map((type) => [type.id, family.code] as const),
     ),
+  );
+  const freeCountByAirportId = new Map(
+    (crewOverview ?? []).map((entry) => [entry.airport_id, entry.free_count]),
+  );
+  const visibleFlights = (flights ?? []).filter(
+    (flight) => !showOnlyIdleCrew || (freeCountByAirportId.get(flight.origin_airport_id) ?? 0) > 0,
   );
 
   return (
@@ -141,6 +151,16 @@ export function FlightBoardPage() {
           </select>
         </label>
 
+        <label className="toggle-switch">
+          <input
+            type="checkbox"
+            checked={showOnlyIdleCrew}
+            onChange={(e) => setShowOnlyIdleCrew(e.target.checked)}
+          />
+          <span className="toggle-switch-track" />
+          Show only Airport with Idle Crew
+        </label>
+
         <button
           className="button"
           disabled={isFetching}
@@ -167,12 +187,12 @@ export function FlightBoardPage() {
         </p>
       )}
       {isLoading && <p>Loading flights...</p>}
-      {!isLoading && !flightsIsError && flights?.length === 0 && (
+      {!isLoading && !flightsIsError && visibleFlights.length === 0 && (
         <p>No aircraft currently airborne near your unlocked airports. Check back shortly.</p>
       )}
 
       <ul className="flight-list">
-        {flights?.map((flight) => {
+        {visibleFlights.map((flight) => {
           const aircraftType = flight.aircraft_type_id
             ? aircraftTypeById.get(flight.aircraft_type_id)
             : undefined;
