@@ -23,10 +23,16 @@ export function RentalPlacementPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const selectedItem = itemTypes?.find((item) => item.id === itemTypeId);
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (itemTypeId === null) {
       setError("Pick an item type first");
+      return;
+    }
+    if (selectedItem && rentalFee < selectedItem.base_cost_credits) {
+      setError(`This item requires a minimum rental fee of ${selectedItem.base_cost_credits} credits`);
       return;
     }
     setError(null);
@@ -69,10 +75,15 @@ export function RentalPlacementPage() {
                 name="itemType"
                 value={item.id}
                 checked={itemTypeId === item.id}
-                onChange={() => setItemTypeId(item.id)}
+                onChange={() => {
+                  setItemTypeId(item.id);
+                  setRentalFee((prev) => Math.max(prev, item.base_cost_credits));
+                }}
               />
               <span>
-                <strong>{item.name}</strong> ({item.category}, {item.settlement_multiplier}x) -- {item.flavor_text}
+                <strong>{item.name}</strong> ({item.category}, {item.settlement_multiplier}x) --{" "}
+                {item.base_cost_credits > 0 ? `min ${item.base_cost_credits} credits` : "no minimum"} --{" "}
+                {item.flavor_text}
               </span>
             </label>
           ))}

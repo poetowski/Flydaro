@@ -12,6 +12,7 @@ from app.core.exceptions import (
     CrewUnavailableError,
     LicenseRequiredError,
     NotFoundError,
+    RentalFeeTooLowError,
     RentalNotResolvedError,
 )
 from app.models.aircraft import AircraftType
@@ -73,6 +74,10 @@ async def create_rental(
     item_type = await db.get(ItemType, item_type_id)
     if item_type is None or not item_type.is_active:
         raise NotFoundError("Item type not found")
+    if rental_fee_credits < item_type.base_cost_credits:
+        raise RentalFeeTooLowError(
+            f"This item requires a minimum rental fee of {item_type.base_cost_credits} credits"
+        )
 
     # Insert-first with a fresh random display_code each attempt: the unique
     # constraint is the real guarantee, this retry is just cheap insurance

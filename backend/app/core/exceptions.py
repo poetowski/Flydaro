@@ -32,3 +32,7 @@ class RentalNotResolvedError(DomainError):
 
 class CrewUnavailableError(DomainError):
     pass
+
+
+class RentalFeeTooLowError(DomainError):
+    pass

@@ -9,6 +9,7 @@ from app.core.exceptions import (
     InsufficientFundsError,
     LicenseRequiredError,
     NotFoundError,
+    RentalFeeTooLowError,
     RentalNotResolvedError,
 )
 from app.models.rental import RentalStatus
@@ -58,6 +59,22 @@ async def test_create_rental_insufficient_funds_raises(db, user, open_flight, it
     await _fund(db, user, amount=100)
     with pytest.raises(InsufficientFundsError):
         await rental_service.create_rental(db, user.id, open_flight.id, item_type.id, 300)
+
+
+async def test_create_rental_below_item_minimum_fee_raises(db, user, open_flight, item_type):
+    await _fund(db, user)
+    item_type.base_cost_credits = 500
+    await db.flush()
+    with pytest.raises(RentalFeeTooLowError):
+        await rental_service.create_rental(db, user.id, open_flight.id, item_type.id, 499)
+
+
+async def test_create_rental_at_exact_minimum_fee_succeeds(db, user, open_flight, item_type):
+    await _fund(db, user)
+    item_type.base_cost_credits = 500
+    await db.flush()
+    rental = await rental_service.create_rental(db, user.id, open_flight.id, item_type.id, 500)
+    assert rental.rental_fee_credits == 500
 
 
 async def test_create_rental_on_locked_flight_raises(db, user, open_flight, item_type):
