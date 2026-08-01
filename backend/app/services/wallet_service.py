@@ -2,6 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import InsufficientFundsError
+from app.models.rental import Rental
 from app.models.wallet import LedgerReason, Wallet, WalletLedgerEntry
 
 
@@ -49,3 +50,23 @@ async def apply_ledger_entry(
 async def get_balance(db: AsyncSession, user_id: int) -> int:
     wallet = await db.get(Wallet, user_id)
     return wallet.balance_credits if wallet else 0
+
+
+async def list_ledger_entries(
+    db: AsyncSession, user_id: int
+) -> list[tuple[WalletLedgerEntry, str | None]]:
+    """Each row pairs a ledger entry with its related rental's human-readable
+    display_code (if any) -- one query, rather than N+1 lookups per entry,
+    so the router can show "Rental fee -- 20260801-1423-7QXK" instead of a
+    raw internal rental id."""
+    result = await db.execute(
+        select(WalletLedgerEntry, Rental.display_code)
+        .outerjoin(Rental, Rental.id == WalletLedgerEntry.related_rental_id)
+        .where(WalletLedgerEntry.user_id == user_id)
+        # id as a tiebreaker: created_at alone isn't unique enough to order
+        # by reliably -- func.now() has only second-level granularity on
+        # SQLite (this suite's test DB), so two entries created in quick
+        # succession can tie.
+        .order_by(WalletLedgerEntry.created_at.desc(), WalletLedgerEntry.id.desc())
+    )
+    return list(result.all())

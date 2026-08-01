@@ -28,6 +28,10 @@ class Rental(Base):
         ForeignKey("tracked_flights.id"), nullable=False, index=True
     )
     item_type_id: Mapped[int] = mapped_column(ForeignKey("item_types.id"), nullable=False)
+    # Human-readable name shown in the UI instead of the raw id -- the
+    # tracked flight's departure time plus a random suffix (see
+    # rental_service.generate_display_code), e.g. "20260801-1423-7QXK".
+    display_code: Mapped[str] = mapped_column(String(30), unique=True, nullable=False, index=True)
 
     rental_fee_credits: Mapped[int] = mapped_column(nullable=False)
     status: Mapped[RentalStatus] = mapped_column(

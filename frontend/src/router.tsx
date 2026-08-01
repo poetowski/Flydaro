@@ -8,6 +8,7 @@ import { FlightBoardPage } from "./routes/FlightBoardPage";
 import { LicensesPage } from "./routes/LicensesPage";
 import { LoginPage } from "./routes/LoginPage";
 import { SignupPage } from "./routes/SignupPage";
+import { WalletLedgerPage } from "./routes/WalletLedgerPage";
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
@@ -23,6 +24,7 @@ export const router = createBrowserRouter([
           { path: "/flights/:flightId/rent", element: <RentalPlacementPage /> },
           { path: "/rentals", element: <RentalHistoryPage /> },
           { path: "/licenses", element: <LicensesPage /> },
+          { path: "/wallet-ledger", element: <WalletLedgerPage /> },
         ],
       },
     ],

@@ -1,6 +1,9 @@
+import random
+import string
 from datetime import datetime, timezone
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import (
@@ -17,6 +20,20 @@ from app.models.rental import Rental, RentalStatus
 from app.models.wallet import LedgerReason
 from app.services import license_service, settlement_service
 from app.services.wallet_service import apply_ledger_entry
+
+# Excludes visually ambiguous characters (0/O, 1/I).
+DISPLAY_CODE_ALPHABET = "".join(c for c in string.ascii_uppercase + string.digits if c not in "O0I1")
+DISPLAY_CODE_SUFFIX_LENGTH = 5
+MAX_DISPLAY_CODE_ATTEMPTS = 5
+
+
+def generate_display_code(departure_at: datetime) -> str:
+    """Human-readable rental name: the flight's departure time (not the
+    rental's own placement time, so multiple rentals on the same flight
+    share a recognizable prefix) plus a random suffix, e.g.
+    "20260801-1423-7QXK"."""
+    suffix = "".join(random.choices(DISPLAY_CODE_ALPHABET, k=DISPLAY_CODE_SUFFIX_LENGTH))
+    return f"{departure_at.strftime('%Y%m%d-%H%M')}-{suffix}"
 
 
 async def create_rental(
@@ -47,15 +64,30 @@ async def create_rental(
     if item_type is None or not item_type.is_active:
         raise NotFoundError("Item type not found")
 
-    rental = Rental(
-        user_id=user_id,
-        tracked_flight_id=tracked_flight_id,
-        item_type_id=item_type_id,
-        rental_fee_credits=rental_fee_credits,
-        status=RentalStatus.PENDING,
-    )
-    db.add(rental)
-    await db.flush()
+    # Insert-first with a fresh random display_code each attempt: the unique
+    # constraint is the real guarantee, this retry is just cheap insurance
+    # against an astronomically unlikely collision (~33M combinations per
+    # departure-minute bucket) -- same begin_nested/IntegrityError pattern
+    # as license_service's unlock functions.
+    rental: Rental | None = None
+    for _ in range(MAX_DISPLAY_CODE_ATTEMPTS):
+        try:
+            async with db.begin_nested():
+                rental = Rental(
+                    user_id=user_id,
+                    tracked_flight_id=tracked_flight_id,
+                    item_type_id=item_type_id,
+                    rental_fee_credits=rental_fee_credits,
+                    status=RentalStatus.PENDING,
+                    display_code=generate_display_code(flight.first_seen_at),
+                )
+                db.add(rental)
+                await db.flush()
+            break
+        except IntegrityError:
+            rental = None
+    if rental is None:
+        raise ConflictError("Could not generate a unique rental code, please retry")
 
     # Raises InsufficientFundsError (propagated to the router) if the wallet
     # can't cover the fee; the flushed-but-uncommitted rental row is rolled

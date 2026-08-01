@@ -13,6 +13,7 @@ class RentalOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    display_code: str
     tracked_flight_id: int
     item_type_id: int
     rental_fee_credits: int

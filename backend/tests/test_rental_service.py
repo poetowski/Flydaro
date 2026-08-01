@@ -30,6 +30,28 @@ async def test_create_rental_debits_wallet_and_creates_pending_rental(db, user, 
     assert await get_balance(db, user.id) == 1700
 
 
+async def test_create_rental_display_code_starts_with_departure_time(
+    db, user, open_flight, item_type
+):
+    await _fund(db, user)
+    rental = await rental_service.create_rental(db, user.id, open_flight.id, item_type.id, 300)
+    expected_prefix = open_flight.first_seen_at.strftime("%Y%m%d-%H%M")
+    assert rental.display_code.startswith(expected_prefix)
+    # prefix + "-" + 5-char random suffix
+    assert len(rental.display_code) == len(expected_prefix) + 1 + 5
+
+
+async def test_two_rentals_on_same_flight_get_different_display_codes(
+    db, user, open_flight, item_type
+):
+    await _fund(db, user, amount=4000)
+    first = await rental_service.create_rental(db, user.id, open_flight.id, item_type.id, 300)
+    second = await rental_service.create_rental(db, user.id, open_flight.id, item_type.id, 300)
+    assert first.display_code != second.display_code
+    # Same departure time -- same prefix.
+    assert first.display_code.split("-")[:2] == second.display_code.split("-")[:2]
+
+
 async def test_create_rental_insufficient_funds_raises(db, user, open_flight, item_type):
     await _fund(db, user, amount=100)
     with pytest.raises(InsufficientFundsError):

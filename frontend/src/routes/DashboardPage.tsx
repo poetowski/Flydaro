@@ -30,7 +30,7 @@ export function DashboardPage() {
           <ul className="rental-list">
             {activeRentals.map((rental) => (
               <li key={rental.id}>
-                Rental #{rental.id} -- {rental.rental_fee_credits} credits -- {rental.status}
+                {rental.display_code} -- {rental.rental_fee_credits} credits -- {rental.status}
               </li>
             ))}
           </ul>

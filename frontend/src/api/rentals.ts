@@ -2,6 +2,7 @@ import { apiRequest } from "./client";
 
 export interface Rental {
   id: number;
+  display_code: string;
   tracked_flight_id: number;
   item_type_id: number;
   rental_fee_credits: number;
