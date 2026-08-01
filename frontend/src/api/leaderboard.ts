@@ -8,3 +8,11 @@ export interface LeaderboardEntry {
 
 export const getLeaderboard = (): Promise<LeaderboardEntry[]> =>
   apiRequest<LeaderboardEntry[]>("/leaderboard");
+
+export interface MyRank {
+  rank: number;
+  total_players: number;
+  credit_bracket: string;
+}
+
+export const getMyRank = (): Promise<MyRank> => apiRequest<MyRank>("/leaderboard/me");

@@ -1,15 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { ApiError } from "../api/client";
 import { getWalletLedger } from "../api/wallet";
-
-const REASON_LABELS: Record<string, string> = {
-  signup_bonus: "Signup bonus",
-  rental_fee: "Rental fee",
-  settlement: "Settlement claimed",
-  license_purchase: "License purchased",
-  item_type_purchase: "Item purchased",
-  admin_adjustment: "Admin adjustment",
-};
+import { REASON_LABELS } from "../lib/ledgerLabels";
 
 export function WalletLedgerPage() {
   const {

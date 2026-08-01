@@ -85,6 +85,21 @@ def credit_bracket(balance_credits: int) -> str:
     return "100k+"
 
 
+async def get_user_rank(db: AsyncSession, user_id: int) -> tuple[int, int]:
+    """(rank, total_players) for the requesting user's own standing --
+    private to them, reveals nothing about any other specific user's
+    balance (same property the public leaderboard's bracket system
+    already has). Rank is 1 + how many players have a strictly greater
+    balance; ties share the same rank rather than being arbitrarily
+    broken."""
+    balance = await get_balance(db, user_id)
+    higher_count = await db.scalar(
+        select(func.count()).select_from(Wallet).where(Wallet.balance_credits > balance)
+    )
+    total = await db.scalar(select(func.count()).select_from(User))
+    return (higher_count or 0) + 1, total or 0
+
+
 async def get_leaderboard(db: AsyncSession, limit: int = 10) -> list[tuple[str, int]]:
     """Top-N (display_name, balance_credits) pairs, highest balance first.
     A LEFT JOIN (not inner) so a user without a wallet row yet still shows

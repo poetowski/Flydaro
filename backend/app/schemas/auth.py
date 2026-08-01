@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
@@ -33,3 +35,4 @@ class CurrentUserOut(BaseModel):
     email: str
     display_name: str
     is_admin: bool
+    created_at: datetime

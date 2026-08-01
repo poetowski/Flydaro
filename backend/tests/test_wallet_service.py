@@ -8,6 +8,7 @@ from app.services.wallet_service import (
     credit_bracket,
     get_balance,
     get_leaderboard,
+    get_user_rank,
     list_ledger_entries,
 )
 
@@ -125,3 +126,34 @@ async def test_get_leaderboard_respects_limit(db, user):
     leaderboard = await get_leaderboard(db, limit=1)
 
     assert leaderboard == [("Second", 1000)]
+
+
+async def test_get_user_rank_alone_is_rank_one_of_one(db, user):
+    await apply_ledger_entry(db, user.id, 500, LedgerReason.SIGNUP_BONUS)
+    assert await get_user_rank(db, user.id) == (1, 1)
+
+
+async def test_get_user_rank_behind_higher_balances(db, user):
+    second = User(email="second@example.com", password_hash="x", display_name="Second")
+    third = User(email="third@example.com", password_hash="x", display_name="Third")
+    db.add_all([second, third])
+    await db.flush()
+
+    await apply_ledger_entry(db, user.id, 500, LedgerReason.SIGNUP_BONUS)
+    await apply_ledger_entry(db, second.id, 50000, LedgerReason.SIGNUP_BONUS)
+    await apply_ledger_entry(db, third.id, 2000, LedgerReason.SIGNUP_BONUS)
+
+    assert await get_user_rank(db, user.id) == (3, 3)
+    assert await get_user_rank(db, second.id) == (1, 3)
+
+
+async def test_get_user_rank_ties_share_rank(db, user):
+    second = User(email="second@example.com", password_hash="x", display_name="Second")
+    db.add(second)
+    await db.flush()
+
+    await apply_ledger_entry(db, user.id, 1000, LedgerReason.SIGNUP_BONUS)
+    await apply_ledger_entry(db, second.id, 1000, LedgerReason.SIGNUP_BONUS)
+
+    assert await get_user_rank(db, user.id) == (1, 2)
+    assert await get_user_rank(db, second.id) == (1, 2)

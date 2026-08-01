@@ -129,6 +129,16 @@ select {
   margin-bottom: 16px;
 }
 
+.card-highlight {
+  border-left: 4px solid var(--accent);
+}
+
+.credits-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
 .big-number {
   font-size: 2rem;
   font-weight: 700;

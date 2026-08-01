@@ -46,6 +46,7 @@ export interface CurrentUser {
   email: string;
   display_name: string;
   is_admin: boolean;
+  created_at: string;
 }
 
 export const getCurrentUser = (): Promise<CurrentUser> => apiRequest<CurrentUser>("/auth/me");
