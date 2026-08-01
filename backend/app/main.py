@@ -31,6 +31,14 @@ settings = get_settings()
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 FRONTEND_DIST = BACKEND_ROOT.parent / "frontend" / "dist"
 
+# Uvicorn doesn't bind/listen on the port until this lifespan's startup
+# finishes -- a migration step that hangs (e.g. a DB that's unreachable
+# rather than cleanly refusing) would otherwise sit silently until
+# Render's own ~15-minute port-scan timeout kills the deploy, with zero
+# diagnostic signal about why. This ceiling turns that into a fast, loud
+# failure instead.
+STARTUP_MIGRATION_TIMEOUT_SECONDS = 60
+
 
 class SPAStaticFiles(StaticFiles):
     """Serves the built SPA, falling back to index.html for any path that
@@ -59,7 +67,17 @@ async def lifespan(app: FastAPI):
     if settings.run_migrations_on_startup:
         logger.info("Running migrations on startup")
         try:
-            await asyncio.to_thread(_run_migrations)
+            await asyncio.wait_for(
+                asyncio.to_thread(_run_migrations), timeout=STARTUP_MIGRATION_TIMEOUT_SECONDS
+            )
+        except TimeoutError:
+            logger.error(
+                "Migrations did not complete within %ss -- likely a DB "
+                "connectivity issue reaching DATABASE_URL_DIRECT, not a "
+                "migration bug",
+                STARTUP_MIGRATION_TIMEOUT_SECONDS,
+            )
+            raise
         except Exception:
             logger.exception("Migrations failed on startup")
             raise

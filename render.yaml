@@ -45,6 +45,13 @@ services:
         value: 3.11.10
       - key: NODE_VERSION
         value: 20.18.0
+      # Without this, Python block-buffers stdout when it isn't a real
+      # terminal (true of Render's log capture) -- app log lines (incl.
+      # "Running migrations on startup") can sit invisible in the buffer
+      # indefinitely instead of showing up in real time, which is exactly
+      # what made a stuck migration look like total silence in the logs.
+      - key: PYTHONUNBUFFERED
+        value: "1"
       - key: DATABASE_URL
         sync: false
       - key: DATABASE_URL_DIRECT
