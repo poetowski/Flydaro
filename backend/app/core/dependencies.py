@@ -1,7 +1,7 @@
 from fastapi import Request
 
-from app.worker.opensky_client import OpenSkyClient
+from app.worker.adsb_client import AdsbClient
 
 
-def get_opensky_client(request: Request) -> OpenSkyClient:
-    return request.app.state.opensky_client
+def get_adsb_client(request: Request) -> AdsbClient:
+    return request.app.state.adsb_client

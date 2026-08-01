@@ -23,7 +23,7 @@ from app.routers import (
     rentals,
     wallet,
 )
-from app.worker.opensky_client import OpenSkyClient
+from app.worker.adsb_client import AdsbClient
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -82,17 +82,11 @@ async def lifespan(app: FastAPI):
             logger.exception("Migrations failed on startup")
             raise
 
-    if not settings.opensky_client_id or not settings.opensky_client_secret:
-        logger.warning(
-            "OPENSKY_CLIENT_ID/OPENSKY_CLIENT_SECRET are not set -- OpenSky "
-            "calls (flight-board discovery and on-demand rental status "
-            "checks) will fail."
-        )
-
-    # No background task: OpenSky is only ever called ad hoc, from within a
+    # No background task: adsb.fi is only ever called ad hoc, from within a
     # request (see flight_discovery_service.py / flight_status_service.py).
-    client = OpenSkyClient()
-    app.state.opensky_client = client
+    # No credentials needed -- adsb.fi is unauthenticated.
+    client = AdsbClient()
+    app.state.adsb_client = client
 
     yield
 
@@ -125,42 +119,6 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/health/opensky")
-async def opensky_health() -> dict[str, int | str | bool | None]:
-    """The only visibility into whether ad-hoc OpenSky calls (flight-board
-    discovery, on-demand rental status checks) are actually succeeding in
-    this deployment -- there's no background poller left to attach a
-    heartbeat to, but the shared OpenSkyClient still tracks its own last
-    call's outcome, which this just reads back. Unauthenticated like
-    /health since it exposes no player data, only call diagnostics.
-
-    Also does a live check against a well-known, unrelated host (GitHub's
-    API) to tell apart "OpenSky specifically is unreachable/blocking us"
-    from "this deployment's outbound networking is broken generally" --
-    two very different problems with very different fixes.
-    """
-    client: OpenSkyClient = app.state.opensky_client
-
-    general_egress_ok: bool | None
-    general_egress_detail: str | None
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as probe:
-            response = await probe.get("https://api.github.com")
-        general_egress_ok = response.status_code < 500
-        general_egress_detail = f"HTTP {response.status_code}"
-    except httpx.HTTPError as exc:
-        general_egress_ok = False
-        general_egress_detail = f"{exc.__class__.__name__}: {exc}"
-
-    return {
-        "last_opensky_status": client.last_status_code,
-        "last_opensky_detail": client.last_status_detail,
-        "credits_remaining": client.credits_remaining,
-        "general_egress_ok": general_egress_ok,
-        "general_egress_detail": general_egress_detail,
-    }
-
-
 # KJFK's coordinates (see alembic/versions/0004_seed_aircraft_types_and_locked_airports.py)
 # -- an arbitrary but real, high-traffic seeded airport, used only to prove
 # reachability, not to fetch anything the app actually needs yet.
@@ -169,23 +127,38 @@ _ADSB_PROBE_URL = "https://opendata.adsb.fi/api/v2/lat/40.6413/lon/-73.7781/dist
 
 @app.get("/health/adsb")
 async def adsb_health() -> dict[str, int | str | None]:
-    """One-shot reachability check for adsb.fi (a free, unauthenticated
-    community ADS-B feed being evaluated as an OpenSky replacement, since
-    OpenSky's own docs say they may block hyperscaler/cloud IP ranges --
-    exactly the class of network Render's egress falls into). This is the
-    same "prove it before building on it" check /health/opensky already
-    demonstrated the value of -- don't assume reachability from a sandbox
-    test alone.
+    """The only visibility into whether ad-hoc adsb.fi calls (flight-board
+    discovery, on-demand rental status checks) are actually succeeding in
+    this deployment -- there's no background poller left to attach a
+    heartbeat to, but the shared AdsbClient still tracks its own last call's
+    outcome, which this just reads back. Unauthenticated like /health since
+    it exposes no player data, only call diagnostics.
+
+    Also does a fresh, independent live check (not read from the shared
+    client) so reachability can be confirmed even before any real board
+    request has ever been made -- this is what proved adsb.fi reachable
+    from Render's egress before the OpenSky-to-adsb.fi migration, and is
+    worth keeping as an ongoing check.
     """
+    client: AdsbClient = app.state.adsb_client
+
+    live_check_status: int | None
+    live_check_detail: str | None
     try:
         async with httpx.AsyncClient(timeout=10.0) as probe:
             response = await probe.get(_ADSB_PROBE_URL)
-        return {
-            "status_code": response.status_code,
-            "detail": None if response.is_success else response.text[:300],
-        }
+        live_check_status = response.status_code
+        live_check_detail = None if response.is_success else response.text[:300]
     except httpx.HTTPError as exc:
-        return {"status_code": None, "detail": f"{exc.__class__.__name__}: {exc}"}
+        live_check_status = None
+        live_check_detail = f"{exc.__class__.__name__}: {exc}"
+
+    return {
+        "live_check_status": live_check_status,
+        "live_check_detail": live_check_detail,
+        "last_call_status": client.last_status_code,
+        "last_call_detail": client.last_status_detail,
+    }
 
 
 # Registered last so it only catches requests no API route above matched.

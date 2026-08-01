@@ -21,7 +21,7 @@ from app.models.airport import Airport
 from app.models.flight import TrackedFlight, TrackedFlightStatus
 from app.services import rental_service, settlement_service
 from app.worker import thresholds, tracker
-from app.worker.opensky_client import OpenSkyClient, StateVector
+from app.worker.adsb_client import AdsbClient, StateVector
 
 logger = logging.getLogger(__name__)
 
@@ -98,8 +98,8 @@ async def _process_airport_states(
             await rental_service.rollback_landing_suspected(db, flight)
 
     # Time-based sweep over every non-resolved flight at this airport,
-    # independent of whether this call's bbox scan returned fresh data for
-    # it -- a flight that stopped transmitting must still resolve eventually.
+    # independent of whether this call's query returned fresh data for it --
+    # a flight that stopped transmitting must still resolve eventually.
     open_flights = list(
         await db.scalars(
             select(TrackedFlight).where(
@@ -113,12 +113,14 @@ async def _process_airport_states(
 
 
 async def refresh_board_for_airports(
-    db: AsyncSession, client: OpenSkyClient, airports: list[Airport]
+    db: AsyncSession, client: AdsbClient, airports: list[Airport]
 ) -> None:
     """Entry point called from GET /flights/board. Only airports whose
-    last_polled_at is stale (or unset) actually make an OpenSky call this
-    request; queried concurrently via asyncio.gather so latency doesn't
-    scale linearly with the number of unlocked airports.
+    last_polled_at is stale (or unset) actually make an adsb.fi call this
+    request; still fanned out via asyncio.gather so per-request latency
+    doesn't scale linearly with the number of unlocked airports -- the
+    client itself (not this concurrency) is what keeps every call, however
+    it's issued, paced to adsb.fi's global 1 req/sec ceiling.
     """
     now = datetime.now(timezone.utc)
     due = [
@@ -132,7 +134,7 @@ async def refresh_board_for_airports(
 
     results = await asyncio.gather(
         *(
-            client.get_states_in_bbox(a.bbox_lamin, a.bbox_lomin, a.bbox_lamax, a.bbox_lomax)
+            client.get_states_near(a.lat, a.lon, thresholds.AIRPORT_QUERY_RADIUS_NM)
             for a in due
         ),
         return_exceptions=True,
@@ -141,7 +143,7 @@ async def refresh_board_for_airports(
     for airport, states_or_exc in zip(due, results):
         airport.last_polled_at = now
         if isinstance(states_or_exc, BaseException):
-            logger.exception("Discovery bbox query failed for %s", airport.icao4, exc_info=states_or_exc)
+            logger.exception("Discovery query failed for %s", airport.icao4, exc_info=states_or_exc)
             continue
         await _process_airport_states(db, airport, states_or_exc, now)
 

@@ -5,11 +5,11 @@ from app.models.flight import TrackedFlight, TrackedFlightStatus
 from app.routers.flights import get_flight_board
 
 
-class FakeOpenSkyClient:
+class FakeAdsbClient:
     """No-op stub: these tests exercise the board's DB-level filtering, not
     ad-hoc discovery itself (see test_flight_discovery_service.py for that)."""
 
-    async def get_states_in_bbox(self, lamin, lomin, lamax, lomax):
+    async def get_states_near(self, lat, lon, dist_nm):
         return []
 
 
@@ -19,7 +19,7 @@ async def test_board_excludes_flights_with_locked_aircraft_type(
     open_flight.aircraft_type_id = locked_aircraft_type.id
     await db.flush()
 
-    result = await get_flight_board(current_user=user, db=db, client=FakeOpenSkyClient())
+    result = await get_flight_board(current_user=user, db=db, client=FakeAdsbClient())
     assert open_flight.id not in [f.id for f in result]
 
 
@@ -35,7 +35,7 @@ async def test_board_aircraft_family_id_param_on_locked_family_returns_empty(
         aircraft_family_id=locked_aircraft_family.id,
         current_user=user,
         db=db,
-        client=FakeOpenSkyClient(),
+        client=FakeAdsbClient(),
     )
     assert result == []
 
@@ -44,14 +44,14 @@ async def test_board_excludes_flights_at_locked_airport(db, user, open_flight, l
     open_flight.origin_airport_id = locked_airport.id
     await db.flush()
 
-    result = await get_flight_board(current_user=user, db=db, client=FakeOpenSkyClient())
+    result = await get_flight_board(current_user=user, db=db, client=FakeAdsbClient())
     assert open_flight.id not in [f.id for f in result]
 
 
 async def test_board_includes_flight_with_unlocked_airport_and_aircraft_type(
     db, user, open_flight
 ):
-    result = await get_flight_board(current_user=user, db=db, client=FakeOpenSkyClient())
+    result = await get_flight_board(current_user=user, db=db, client=FakeAdsbClient())
     assert open_flight.id in [f.id for f in result]
 
 
@@ -91,7 +91,7 @@ async def test_board_family_filter_expands_across_member_types(
     await db.flush()
 
     result = await get_flight_board(
-        aircraft_family_id=aircraft_family.id, current_user=user, db=db, client=FakeOpenSkyClient()
+        aircraft_family_id=aircraft_family.id, current_user=user, db=db, client=FakeAdsbClient()
     )
     result_ids = {f.id for f in result}
     assert open_flight.id in result_ids

@@ -45,14 +45,17 @@ LOST_SIGNAL_CEILING_MINUTES = 25.0
 # triggered when a player checks their rentals, not on a fixed schedule, so
 # it needs its own throttle rather than relying on poll cadence.
 STATUS_CHECK_MIN_INTERVAL_SECONDS = 30.0
-# How far a /flights/aircraft leg's firstSeen may drift from our own
-# first_seen_at and still count as "the same departure" -- OpenSky's own
-# takeoff timestamp for the same event won't line up to the second with
-# ours, but should be close.
-HISTORICAL_LEG_MATCH_TOLERANCE_MINUTES = 30.0
 
 # Ad-hoc board discovery (app/services/flight_discovery_service.py): throttles
-# how often any single airport's bbox gets a fresh OpenSky states/all call,
-# so N concurrent users all loading the board with the same unlocked airport
-# don't turn into N OpenSky calls.
+# how often any single airport gets a fresh adsb.fi query, so N concurrent
+# users all loading the board with the same unlocked airport don't turn into
+# N adsb.fi calls (on top of the client's own global pacing, see
+# adsb_client.MIN_REQUEST_INTERVAL_SECONDS).
 AIRPORT_POLL_MIN_INTERVAL_SECONDS = 45.0
+
+# Query radius passed to adsb.fi's lat/lon/dist endpoint, replacing the old
+# OpenSky-era bounding-box query. Must stay >= TAKEOFF_MAX_DISTANCE_KM (in
+# nautical miles: 50km / 1.852 ~= 27nm) or a real candidate could fall
+# outside the query itself before the distance check above ever runs;
+# rounded up for a comfortable margin.
+AIRPORT_QUERY_RADIUS_NM = 30.0

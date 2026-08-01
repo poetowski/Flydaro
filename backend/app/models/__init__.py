@@ -1,4 +1,4 @@
-from app.models.aircraft import AircraftRegistry, AircraftType
+from app.models.aircraft import AircraftType
 from app.models.aircraft_family import AircraftFamily
 from app.models.airport import Airport
 from app.models.flight import FlightStateSample, TrackedFlight, TrackedFlightStatus
@@ -10,7 +10,6 @@ from app.models.wallet import LedgerReason, Wallet, WalletLedgerEntry
 
 __all__ = [
     "AircraftFamily",
-    "AircraftRegistry",
     "AircraftType",
     "Airport",
     "FlightStateSample",

@@ -82,9 +82,9 @@ class TrackedFlight(Base):
     resolved_at: Mapped[datetime | None] = mapped_column(nullable=True)
     resolution_summary: Mapped[dict | None] = mapped_column(JsonVariant, nullable=True)
 
-    # Throttle for the on-demand OpenSky confirmation check (see
+    # Throttle for the on-demand adsb.fi confirmation check (see
     # app/services/flight_status_service.py) -- a user hammering refresh on
-    # /rentals/mine must not turn into an OpenSky call per click.
+    # /rentals/mine must not turn into an adsb.fi call per click.
     last_status_check_at: Mapped[datetime | None] = mapped_column(nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)

@@ -5,7 +5,7 @@ from sqlalchemy import select
 from app.models.flight import TrackedFlight, TrackedFlightStatus
 from app.services import flight_discovery_service
 from app.worker import thresholds
-from app.worker.opensky_client import StateVector
+from app.worker.adsb_client import StateVector
 
 
 def _state(icao24, lat, lon, on_ground=False, alt=300.0, velocity=100.0, vertical_rate=5.0):
@@ -19,27 +19,28 @@ def _state(icao24, lat, lon, on_ground=False, alt=300.0, velocity=100.0, vertica
         velocity=velocity,
         vertical_rate=vertical_rate,
         geo_altitude=alt,
-        raw=[],
+        aircraft_type_code=None,
+        raw={},
     )
 
 
-class FakeOpenSkyClient:
-    def __init__(self, states_by_bbox=None):
-        self._states_by_bbox = states_by_bbox or {}
+class FakeAdsbClient:
+    def __init__(self, states_by_airport=None):
+        self._states_by_airport = states_by_airport or {}
         self.calls = []
 
-    async def get_states_in_bbox(self, lamin, lomin, lamax, lomax):
-        self.calls.append((lamin, lomin, lamax, lomax))
-        return self._states_by_bbox.get((lamin, lomin, lamax, lomax), [])
+    async def get_states_near(self, lat, lon, dist_nm):
+        self.calls.append((lat, lon, dist_nm))
+        return self._states_by_airport.get((lat, lon), [])
 
 
-def _bbox_key(airport):
-    return (airport.bbox_lamin, airport.bbox_lomin, airport.bbox_lamax, airport.bbox_lomax)
+def _airport_key(airport):
+    return (airport.lat, airport.lon)
 
 
 async def test_new_takeoff_creates_tracked_flight(db, airport):
     state = _state("newicao", airport.lat, airport.lon)
-    client = FakeOpenSkyClient({_bbox_key(airport): [state]})
+    client = FakeAdsbClient({_airport_key(airport): [state]})
 
     await flight_discovery_service.refresh_board_for_airports(db, client, [airport])
 
@@ -54,7 +55,7 @@ async def test_capacity_window_closes_after_elapsed_minutes(db, open_flight, air
     )
     await db.flush()
     state = _state(open_flight.icao24, airport.lat, airport.lon)
-    client = FakeOpenSkyClient({_bbox_key(airport): [state]})
+    client = FakeAdsbClient({_airport_key(airport): [state]})
 
     await flight_discovery_service.refresh_board_for_airports(db, client, [airport])
 
@@ -68,7 +69,7 @@ async def test_locked_flight_transitions_to_landing_suspected(db, open_flight, a
     landing_state = _state(
         open_flight.icao24, airport.lat, airport.lon, alt=50.0, velocity=20.0, vertical_rate=0.5
     )
-    client = FakeOpenSkyClient({_bbox_key(airport): [landing_state]})
+    client = FakeAdsbClient({_airport_key(airport): [landing_state]})
 
     await flight_discovery_service.refresh_board_for_airports(db, client, [airport])
 
@@ -81,7 +82,7 @@ async def test_landing_suspected_rolls_back_on_touch_and_go(db, open_flight, air
     open_flight.landing_suspected_at = datetime.now(timezone.utc)
     await db.flush()
     climbing_state = _state(open_flight.icao24, airport.lat, airport.lon, alt=500.0, velocity=120.0, vertical_rate=8.0)
-    client = FakeOpenSkyClient({_bbox_key(airport): [climbing_state]})
+    client = FakeAdsbClient({_airport_key(airport): [climbing_state]})
 
     await flight_discovery_service.refresh_board_for_airports(db, client, [airport])
 
@@ -97,7 +98,7 @@ async def test_landing_suspected_resolves_after_grace_period_with_no_fresh_state
         minutes=thresholds.LANDING_GRACE_PERIOD_MINUTES + 1
     )
     await db.flush()
-    client = FakeOpenSkyClient({_bbox_key(airport): []})
+    client = FakeAdsbClient({_airport_key(airport): []})
 
     await flight_discovery_service.refresh_board_for_airports(db, client, [airport])
 
@@ -109,7 +110,7 @@ async def test_sweep_resolves_timeout_past_duration_ceiling_with_no_rental(db, o
         minutes=thresholds.MAX_FLIGHT_DURATION_CEILING_MINUTES + 1
     )
     await db.flush()
-    client = FakeOpenSkyClient({_bbox_key(airport): []})
+    client = FakeAdsbClient({_airport_key(airport): []})
 
     await flight_discovery_service.refresh_board_for_airports(db, client, [airport])
 
@@ -121,7 +122,7 @@ async def test_sweep_resolves_lost_signal_past_ceiling(db, open_flight, airport)
         minutes=thresholds.LOST_SIGNAL_CEILING_MINUTES + 1
     )
     await db.flush()
-    client = FakeOpenSkyClient({_bbox_key(airport): []})
+    client = FakeAdsbClient({_airport_key(airport): []})
 
     await flight_discovery_service.refresh_board_for_airports(db, client, [airport])
 
@@ -129,7 +130,7 @@ async def test_sweep_resolves_lost_signal_past_ceiling(db, open_flight, airport)
 
 
 async def test_per_airport_throttle_skips_second_call_within_window(db, airport):
-    client = FakeOpenSkyClient({_bbox_key(airport): []})
+    client = FakeAdsbClient({_airport_key(airport): []})
 
     await flight_discovery_service.refresh_board_for_airports(db, client, [airport])
     assert len(client.calls) == 1
@@ -139,10 +140,10 @@ async def test_per_airport_throttle_skips_second_call_within_window(db, airport)
 
 
 async def test_two_due_airports_both_get_queried(db, airport, locked_airport):
-    client = FakeOpenSkyClient({_bbox_key(airport): [], _bbox_key(locked_airport): []})
+    client = FakeAdsbClient({_airport_key(airport): [], _airport_key(locked_airport): []})
 
     await flight_discovery_service.refresh_board_for_airports(db, client, [airport, locked_airport])
 
     assert len(client.calls) == 2
-    assert _bbox_key(airport) in client.calls
-    assert _bbox_key(locked_airport) in client.calls
+    assert any(c[:2] == _airport_key(airport) for c in client.calls)
+    assert any(c[:2] == _airport_key(locked_airport) for c in client.calls)

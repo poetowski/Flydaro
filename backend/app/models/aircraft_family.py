@@ -9,7 +9,8 @@ class AircraftFamily(Base):
     AircraftType row whose family_id points here (e.g. "Airbus A320 Family"
     covers A318/A319/A320/A321 and their neo variants). AircraftType itself
     stays a granular per-real-model reference table, used for display and
-    for aircraft_registry_sync.py's exact-typecode matching, not licensing.
+    for tracker.py's exact-typecode matching (see resolve_aircraft_type_id_by_code),
+    not licensing.
     """
 
     __tablename__ = "aircraft_families"

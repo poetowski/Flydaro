@@ -32,5 +32,5 @@ class Airport(Base):
     unlock_cost_credits: Mapped[int] = mapped_column(nullable=False, default=0)
     # Throttle for ad-hoc board discovery (app/services/flight_discovery_service.py)
     # -- avoids N concurrent users loading the board for this airport each
-    # triggering a fresh OpenSky bbox call.
+    # triggering a fresh adsb.fi call.
     last_polled_at: Mapped[datetime | None] = mapped_column(nullable=True)

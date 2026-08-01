@@ -3,12 +3,12 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.aircraft import AircraftRegistry
+from app.models.aircraft import AircraftType
 from app.models.airport import Airport
 from app.models.flight import FlightStateSample, TrackedFlight, TrackedFlightStatus
 from app.worker import thresholds
+from app.worker.adsb_client import StateVector
 from app.worker.geo import haversine_km
-from app.worker.opensky_client import StateVector
 
 RESOLVED_STATUSES = (
     TrackedFlightStatus.RESOLVED_LANDED,
@@ -61,21 +61,28 @@ async def find_open_tracked_flight(db: AsyncSession, icao24: str) -> TrackedFlig
     )
 
 
-async def resolve_aircraft_type_id(db: AsyncSession, icao24: str) -> int | None:
-    """Single PK lookup against our small, curated-types-only registry table
-    (populated by worker/aircraft_registry_sync.py). Returns None if this
-    icao24 was never matched to one of our curated aircraft types -- that's
-    a normal, expected outcome given the free registry's coverage gaps, not
-    an error.
+async def resolve_aircraft_type_id_by_code(db: AsyncSession, type_code: str | None) -> int | None:
+    """Looks up one of our curated aircraft_types by its ICAO type code,
+    read directly off the live adsb.fi response (StateVector.aircraft_type_code)
+    -- no separate registry table/sync job needed, unlike OpenSky which never
+    included aircraft type in its live state vectors. Returns None if the
+    code is missing or doesn't match a currently-active curated type -- a
+    normal, expected outcome (an uncurated or rare type), not an error.
     """
-    entry = await db.get(AircraftRegistry, icao24.lower())
-    return entry.aircraft_type_id if entry else None
+    if not type_code:
+        return None
+    return await db.scalar(
+        select(AircraftType.id).where(
+            AircraftType.icao_type_code == type_code.upper(),
+            AircraftType.is_active.is_(True),
+        )
+    )
 
 
 async def create_tracked_flight(
     db: AsyncSession, state: StateVector, airport: Airport, observed_at: datetime
 ) -> TrackedFlight:
-    aircraft_type_id = await resolve_aircraft_type_id(db, state.icao24)
+    aircraft_type_id = await resolve_aircraft_type_id_by_code(db, state.aircraft_type_code)
     flight = TrackedFlight(
         icao24=state.icao24,
         callsign=state.callsign,

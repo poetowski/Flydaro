@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_opensky_client
+from app.core.dependencies import get_adsb_client
 from app.core.security import get_current_user
 from app.db.session import get_db
 from app.models.airport import Airport
@@ -10,7 +10,7 @@ from app.models.flight import TrackedFlight, TrackedFlightStatus
 from app.models.user import User
 from app.schemas.flight import TrackedFlightOut
 from app.services import flight_discovery_service, license_service
-from app.worker.opensky_client import OpenSkyClient
+from app.worker.adsb_client import AdsbClient
 
 router = APIRouter(prefix="/flights", tags=["flights"])
 
@@ -28,7 +28,7 @@ async def get_flight_board(
     status_filter: str | None = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    client: OpenSkyClient = Depends(get_opensky_client),
+    client: AdsbClient = Depends(get_adsb_client),
 ) -> list[TrackedFlight]:
     unlocked_airport_ids = await license_service.get_unlocked_airport_ids(db, current_user.id)
     unlocked_type_ids = await license_service.get_unlocked_aircraft_type_ids(db, current_user.id)

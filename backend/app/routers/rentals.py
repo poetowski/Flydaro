@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_opensky_client
+from app.core.dependencies import get_adsb_client
 from app.core.exceptions import (
     CapacityClosedError,
     ConflictError,
@@ -18,19 +18,19 @@ from app.models.rental import Rental, RentalStatus
 from app.models.user import User
 from app.schemas.rental import CreateRentalRequest, RentalOut
 from app.services import flight_status_service, rental_service
-from app.worker.opensky_client import OpenSkyClient
+from app.worker.adsb_client import AdsbClient
 
 router = APIRouter(prefix="/rentals", tags=["rentals"])
 
 
-async def _refresh_flights_for(db: AsyncSession, client: OpenSkyClient, rentals: list[Rental]) -> None:
+async def _refresh_flights_for(db: AsyncSession, client: AdsbClient, rentals: list[Rental]) -> None:
     """The actual reward gate: before returning any non-resolved rental,
-    explicitly ask OpenSky (live state, then historical record) whether its
-    flight has landed, rather than trusting the background poller's own
-    schedule to have already caught it. Triggered by the player checking
-    back in, per the design call: landing must be explicitly confirmed by
-    an API call, not just inferred from continuous polling that may have
-    missed its window (e.g. the app was asleep).
+    explicitly ask adsb.fi (live state) whether its flight has landed,
+    rather than trusting the background poller's own schedule to have
+    already caught it. Triggered by the player checking back in, per the
+    design call: landing must be explicitly confirmed by an API call, not
+    just inferred from continuous polling that may have missed its window
+    (e.g. the app was asleep).
     """
     for rental in rentals:
         if rental.status == RentalStatus.RESOLVED:
@@ -78,7 +78,7 @@ async def list_my_rentals(
     status_filter: str | None = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    client: OpenSkyClient = Depends(get_opensky_client),
+    client: AdsbClient = Depends(get_adsb_client),
 ) -> list[Rental]:
     parsed_status = None
     if status_filter is not None:
@@ -98,7 +98,7 @@ async def get_rental(
     rental_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    client: OpenSkyClient = Depends(get_opensky_client),
+    client: AdsbClient = Depends(get_adsb_client),
 ) -> Rental:
     try:
         rental = await rental_service.get_rental_for_user(db, current_user.id, rental_id)

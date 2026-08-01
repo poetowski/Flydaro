@@ -20,15 +20,10 @@ class Settings(BaseSettings):
 
     signup_bonus_credits: int = 2000
 
-    opensky_client_id: str = ""
-    opensky_client_secret: str = ""
-    opensky_token_url: str = "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token"
-    opensky_api_base: str = "https://opensky-network.org/api"
-
-    # Bulk, irregularly-updated, unversioned "as-is" CSV -- not a live API.
-    # Verify this URL still resolves before relying on it; OpenSky gives no
-    # stability guarantee on it.
-    aircraft_registry_csv_url: str = "https://opensky-network.org/datasets/metadata/aircraftDatabase.csv"
+    # Free, unauthenticated community ADS-B feed (see app/worker/adsb_client.py)
+    # -- adsb.lol mirrors the same schema/endpoints, so switching is just this
+    # one URL if adsb.fi ever becomes unreliable.
+    adsb_api_base: str = "https://opendata.adsb.fi/api"
 
     run_migrations_on_startup: bool = False
 

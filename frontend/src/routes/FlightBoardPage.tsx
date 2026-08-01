@@ -53,9 +53,9 @@ export function FlightBoardPage() {
         airportId === "all" ? undefined : airportId,
         aircraftFamilyId === "all" ? undefined : aircraftFamilyId,
       ),
-    // No auto-refetch interval: OpenSky is only called ad hoc, when this
-    // request is actually made -- loading the page, changing a filter, or
-    // pressing Refresh below, not on a timer from every open tab.
+    // No auto-refetch interval: the flight-data API is only called ad hoc,
+    // when this request is actually made -- loading the page, changing a
+    // filter, or pressing Refresh below, not on a timer from every open tab.
   });
 
   const unlockedAirports = airports?.filter((airport) => airport.unlocked) ?? [];
@@ -124,6 +124,9 @@ export function FlightBoardPage() {
 
       <p className="muted">
         Want more airports or planes? Visit <Link to="/licenses">Licenses</Link>.
+      </p>
+      <p className="muted">
+        Live flight data via <a href="https://adsb.fi" target="_blank" rel="noreferrer">adsb.fi</a>.
       </p>
 
       {flightsIsError && (

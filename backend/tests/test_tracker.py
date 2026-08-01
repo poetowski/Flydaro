@@ -1,10 +1,9 @@
 from datetime import datetime, timedelta, timezone
 
-from app.models.aircraft import AircraftRegistry
 from app.models.airport import Airport
 from app.models.flight import TrackedFlight, TrackedFlightStatus
 from app.worker import thresholds
-from app.worker.opensky_client import StateVector
+from app.worker.adsb_client import StateVector
 from app.worker.tracker import (
     build_resolution_summary,
     create_tracked_flight,
@@ -13,7 +12,7 @@ from app.worker.tracker import (
     looks_like_landing,
     looks_like_recent_takeoff,
     lost_signal_ceiling_breached,
-    resolve_aircraft_type_id,
+    resolve_aircraft_type_id_by_code,
 )
 
 EHAM = Airport(
@@ -32,9 +31,20 @@ EHAM = Airport(
 )
 
 
-def _state(lat, lon, alt, on_ground, velocity=100.0, vertical_rate=5.0):
-    raw = ["abc123", "TST123 ", "NL", None, None, lon, lat, alt, on_ground, velocity, 0, vertical_rate, None, alt]
-    return StateVector.from_raw(raw)
+def _state(lat, lon, alt, on_ground, velocity=100.0, vertical_rate=5.0, aircraft_type_code=None):
+    return StateVector(
+        icao24="abc123",
+        callsign="TST123",
+        longitude=lon,
+        latitude=lat,
+        baro_altitude=alt,
+        on_ground=on_ground,
+        velocity=velocity,
+        vertical_rate=vertical_rate,
+        geo_altitude=alt,
+        aircraft_type_code=aircraft_type_code,
+        raw={},
+    )
 
 
 def test_takeoff_detected_close_to_airport_low_and_climbing():
@@ -83,15 +93,37 @@ def test_takeoff_detected_with_zero_vertical_rate():
 
 
 def test_takeoff_detected_via_geo_altitude_fallback():
-    # baro_altitude (index 7) missing, geo_altitude (index 13) present.
-    raw = ["abc123", "TST123 ", "NL", None, None, 4.78, 52.32, None, False, 100.0, 0, 6.0, None, 300.0]
-    state = StateVector.from_raw(raw)
+    # baro_altitude missing, geo_altitude present.
+    state = StateVector(
+        icao24="abc123",
+        callsign="TST123",
+        longitude=4.78,
+        latitude=52.32,
+        baro_altitude=None,
+        on_ground=False,
+        velocity=100.0,
+        vertical_rate=6.0,
+        geo_altitude=300.0,
+        aircraft_type_code=None,
+        raw={},
+    )
     assert looks_like_recent_takeoff(state, EHAM) is True
 
 
 def test_takeoff_not_detected_when_both_altitudes_missing():
-    raw = ["abc123", "TST123 ", "NL", None, None, 4.78, 52.32, None, False, 100.0, 0, 6.0, None, None]
-    state = StateVector.from_raw(raw)
+    state = StateVector(
+        icao24="abc123",
+        callsign="TST123",
+        longitude=4.78,
+        latitude=52.32,
+        baro_altitude=None,
+        on_ground=False,
+        velocity=100.0,
+        vertical_rate=6.0,
+        geo_altitude=None,
+        aircraft_type_code=None,
+        raw={},
+    )
     assert looks_like_recent_takeoff(state, EHAM) is False
 
 
@@ -115,23 +147,21 @@ def test_landing_not_detected_still_descending_fast():
     assert looks_like_landing(state) is False
 
 
-async def test_resolve_aircraft_type_id_matches_registry_entry(db, aircraft_type):
-    db.add(AircraftRegistry(icao24="abc123", aircraft_type_id=aircraft_type.id))
-    await db.flush()
-
-    resolved = await resolve_aircraft_type_id(db, "ABC123")  # case-insensitive lookup
+async def test_resolve_aircraft_type_id_by_code_matches_known_type(db, aircraft_type):
+    resolved = await resolve_aircraft_type_id_by_code(db, "a320")  # case-insensitive lookup
     assert resolved == aircraft_type.id
 
 
-async def test_resolve_aircraft_type_id_unknown_icao24_returns_none(db):
-    assert await resolve_aircraft_type_id(db, "ffffff") is None
+async def test_resolve_aircraft_type_id_by_code_unknown_code_returns_none(db):
+    assert await resolve_aircraft_type_id_by_code(db, "ZZZZ") is None
+
+
+async def test_resolve_aircraft_type_id_by_code_none_returns_none(db):
+    assert await resolve_aircraft_type_id_by_code(db, None) is None
 
 
 async def test_create_tracked_flight_resolves_known_aircraft_type(db, airport, aircraft_type):
-    db.add(AircraftRegistry(icao24="abc123", aircraft_type_id=aircraft_type.id))
-    await db.flush()
-
-    state = _state(52.32, 4.78, 300.0, False, vertical_rate=6.0)
+    state = _state(52.32, 4.78, 300.0, False, vertical_rate=6.0, aircraft_type_code=aircraft_type.icao_type_code)
     flight = await create_tracked_flight(db, state, airport, datetime.now(timezone.utc))
     assert flight.aircraft_type_id == aircraft_type.id
 

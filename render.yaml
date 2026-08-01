@@ -15,11 +15,13 @@
 # understands. Replace both with `ssl=require` before pasting into
 # DATABASE_URL / DATABASE_URL_DIRECT (see README).
 #
-# No background task of any kind: OpenSky is only ever called ad hoc, from
-# within a request (flight-board discovery in GET /flights/board, on-demand
-# rental status/landing confirmation in GET /rentals/mine and
-# GET /rentals/{id} -- see app/services/flight_discovery_service.py and
-# flight_status_service.py). A free web service still spins down after
+# No background task of any kind: adsb.fi (a free, unauthenticated
+# community ADS-B feed -- OpenSky is not used, see app/worker/adsb_client.py)
+# is only ever called ad hoc, from within a request (flight-board discovery
+# in GET /flights/board, on-demand rental status/landing confirmation in
+# GET /rentals/mine and GET /rentals/{id} -- see
+# app/services/flight_discovery_service.py and flight_status_service.py).
+# A free web service still spins down after
 # 15 min idle and cold-starts (~1 min) on the next request, but there is no
 # continuously-running task for that to interrupt -- a cold start just adds
 # latency to whichever request wakes the service, it never causes missed
@@ -73,10 +75,6 @@ services:
         value: '["http://localhost:5173"]'
       - key: SIGNUP_BONUS_CREDITS
         value: "2000"
-      - key: OPENSKY_CLIENT_ID
-        sync: false
-      - key: OPENSKY_CLIENT_SECRET
-        sync: false
       # Empty = relative fetch() URLs, correct for same-origin serving.
       - key: VITE_API_BASE_URL
         value: ""
