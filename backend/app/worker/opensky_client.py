@@ -6,7 +6,6 @@ that talks to OpenSky -- the web API and SPA only ever read/write Postgres.
 import logging
 import time
 from dataclasses import dataclass
-from urllib.parse import quote
 
 import httpx
 
@@ -19,21 +18,6 @@ settings = get_settings()
 # Refresh the bearer token this many seconds before it actually expires, so a
 # request never blocks mid-tick on a token fetch.
 TOKEN_REFRESH_SAFETY_MARGIN_SECONDS = 60
-
-
-def _relay_wrap(url: str) -> str:
-    """Routes through the configured external relay if set (see
-    opensky_relay_url's docstring in config.py); otherwise returns the
-    OpenSky URL unchanged."""
-    if not settings.opensky_relay_url:
-        return url
-    return f"{settings.opensky_relay_url}?target={quote(url, safe='')}"
-
-
-def _relay_headers(headers: dict) -> dict:
-    if settings.opensky_relay_url and settings.opensky_relay_secret:
-        return {**headers, "X-Relay-Secret": settings.opensky_relay_secret}
-    return headers
 
 
 @dataclass
@@ -85,13 +69,12 @@ class OpenSkyClient:
 
     async def _fetch_token(self) -> None:
         response = await self._http.post(
-            _relay_wrap(settings.opensky_token_url),
+            settings.opensky_token_url,
             data={
                 "grant_type": "client_credentials",
                 "client_id": settings.opensky_client_id,
                 "client_secret": settings.opensky_client_secret,
             },
-            headers=_relay_headers({}),
         )
         response.raise_for_status()
         body = response.json()
@@ -139,16 +122,10 @@ class OpenSkyClient:
             self._record_call_result(None, f"Token request failed: {exc.__class__.__name__}: {exc}")
             return None
 
-        # Query params are baked into the URL string itself (rather than
-        # passed separately to httpx) so the *whole* target -- path and
-        # params together -- is what gets url-encoded as the relay's
-        # ?target= value when a relay is configured; harmless/equivalent to
-        # passing params separately when it isn't.
-        target_url = str(httpx.URL(f"{settings.opensky_api_base}{path}", params=params))
-        url = _relay_wrap(target_url)
-        headers = _relay_headers({"Authorization": f"Bearer {token}"})
+        url = f"{settings.opensky_api_base}{path}"
+        headers = {"Authorization": f"Bearer {token}"}
         try:
-            response = await self._http.get(url, headers=headers)
+            response = await self._http.get(url, params=params, headers=headers)
         except httpx.HTTPError as exc:
             logger.exception("OpenSky request failed")
             self._record_call_result(None, f"{exc.__class__.__name__}: {exc}")
@@ -162,8 +139,8 @@ class OpenSkyClient:
             except httpx.HTTPError as exc:
                 self._record_call_result(None, f"Token refresh failed: {exc.__class__.__name__}: {exc}")
                 return None
-            headers = _relay_headers({"Authorization": f"Bearer {token}"})
-            response = await self._http.get(url, headers=headers)
+            headers = {"Authorization": f"Bearer {token}"}
+            response = await self._http.get(url, params=params, headers=headers)
 
         self._update_credit_budget(response)
         self._record_call_result(

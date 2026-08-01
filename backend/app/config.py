@@ -25,15 +25,6 @@ class Settings(BaseSettings):
     opensky_token_url: str = "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token"
     opensky_api_base: str = "https://opensky-network.org/api"
 
-    # Optional workaround for a deployment whose outbound network is
-    # blocked/throttled by OpenSky specifically (seen on Render): route
-    # every OpenSky call through an external relay (e.g. a Cloudflare
-    # Worker) instead of calling opensky-network.org directly. Leave both
-    # blank to call OpenSky directly, which is the default and what local
-    # dev uses.
-    opensky_relay_url: str = ""
-    opensky_relay_secret: str = ""
-
     # Bulk, irregularly-updated, unversioned "as-is" CSV -- not a live API.
     # Verify this URL still resolves before relying on it; OpenSky gives no
     # stability guarantee on it.
