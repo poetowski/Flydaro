@@ -3,7 +3,13 @@ import pytest
 from app.core.exceptions import InsufficientFundsError
 from app.models.user import User
 from app.models.wallet import LedgerReason
-from app.services.wallet_service import apply_ledger_entry, get_balance, list_ledger_entries
+from app.services.wallet_service import (
+    apply_ledger_entry,
+    credit_bracket,
+    get_balance,
+    get_leaderboard,
+    list_ledger_entries,
+)
 
 
 async def test_credit_increases_balance(db, user):
@@ -68,3 +74,54 @@ async def test_list_ledger_entries_includes_related_rental_display_code(
     )
     assert fee_entry.related_rental_id == rental.id
     assert display_code == rental.display_code
+
+
+@pytest.mark.parametrize(
+    "balance, expected",
+    [
+        (0, "0-1k"),
+        (999, "0-1k"),
+        (1000, "1-10k"),
+        (2222, "1-10k"),
+        (9999, "1-10k"),
+        (10000, "10-100k"),
+        (10222, "10-100k"),
+        (99999, "10-100k"),
+        (100000, "100k+"),
+        (5_000_000, "100k+"),
+    ],
+)
+def test_credit_bracket_boundaries(balance, expected):
+    assert credit_bracket(balance) == expected
+
+
+async def test_get_leaderboard_orders_by_balance_desc(db, user):
+    second = User(email="second@example.com", password_hash="x", display_name="Second Place")
+    third = User(email="third@example.com", password_hash="x", display_name="Third Place")
+    db.add_all([second, third])
+    await db.flush()
+
+    await apply_ledger_entry(db, user.id, 500, LedgerReason.SIGNUP_BONUS)
+    await apply_ledger_entry(db, second.id, 50000, LedgerReason.SIGNUP_BONUS)
+    await apply_ledger_entry(db, third.id, 2000, LedgerReason.SIGNUP_BONUS)
+
+    leaderboard = await get_leaderboard(db, limit=10)
+
+    assert leaderboard == [
+        ("Second Place", 50000),
+        ("Third Place", 2000),
+        (user.display_name, 500),
+    ]
+
+
+async def test_get_leaderboard_respects_limit(db, user):
+    second = User(email="second@example.com", password_hash="x", display_name="Second")
+    db.add(second)
+    await db.flush()
+
+    await apply_ledger_entry(db, user.id, 500, LedgerReason.SIGNUP_BONUS)
+    await apply_ledger_entry(db, second.id, 1000, LedgerReason.SIGNUP_BONUS)
+
+    leaderboard = await get_leaderboard(db, limit=1)
+
+    assert leaderboard == [("Second", 1000)]

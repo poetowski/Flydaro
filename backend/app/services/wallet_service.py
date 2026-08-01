@@ -1,8 +1,9 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import InsufficientFundsError
 from app.models.rental import Rental
+from app.models.user import User
 from app.models.wallet import LedgerReason, Wallet, WalletLedgerEntry
 
 
@@ -68,5 +69,33 @@ async def list_ledger_entries(
         # SQLite (this suite's test DB), so two entries created in quick
         # succession can tie.
         .order_by(WalletLedgerEntry.created_at.desc(), WalletLedgerEntry.id.desc())
+    )
+    return list(result.all())
+
+
+def credit_bracket(balance_credits: int) -> str:
+    """Magnitude bracket for the leaderboard -- deliberately never exposes
+    the exact balance, only which order-of-magnitude bucket it falls in."""
+    if balance_credits < 1_000:
+        return "0-1k"
+    if balance_credits < 10_000:
+        return "1-10k"
+    if balance_credits < 100_000:
+        return "10-100k"
+    return "100k+"
+
+
+async def get_leaderboard(db: AsyncSession, limit: int = 10) -> list[tuple[str, int]]:
+    """Top-N (display_name, balance_credits) pairs, highest balance first.
+    A LEFT JOIN (not inner) so a user without a wallet row yet still shows
+    up with a 0 balance rather than being silently dropped -- shouldn't
+    happen in practice (signup always credits a signup bonus, creating the
+    wallet row), but the correct join shape regardless. User.id is a
+    tiebreaker for deterministic ordering across equal balances."""
+    result = await db.execute(
+        select(User.display_name, func.coalesce(Wallet.balance_credits, 0))
+        .outerjoin(Wallet, Wallet.user_id == User.id)
+        .order_by(func.coalesce(Wallet.balance_credits, 0).desc(), User.id.asc())
+        .limit(limit)
     )
     return list(result.all())

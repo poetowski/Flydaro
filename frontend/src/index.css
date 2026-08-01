@@ -89,6 +89,12 @@ select {
   font-weight: 600;
 }
 
+/* Pushes itself and every following nav link to the right edge of the same
+   flex nav, without needing a second <nav> element. */
+.nav-right-group {
+  margin-left: auto;
+}
+
 .header-right {
   display: flex;
   align-items: center;
@@ -398,6 +404,36 @@ button:disabled {
 
 .ledger-amount-negative {
   color: var(--danger);
+  font-weight: 600;
+}
+
+.leaderboard-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.leaderboard-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  border-radius: 12px;
+}
+
+.leaderboard-rank {
+  font-weight: 700;
+  color: var(--text-muted);
+  width: 2.5em;
+}
+
+.leaderboard-name {
+  flex: 1;
   font-weight: 600;
 }
 

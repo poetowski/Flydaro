@@ -19,6 +19,7 @@ from app.routers import (
     auth,
     flights,
     item_types,
+    leaderboard,
     licenses,
     rentals,
     wallet,
@@ -112,6 +113,7 @@ app.include_router(aircraft_families.router)
 app.include_router(licenses.router)
 app.include_router(flights.router)
 app.include_router(rentals.router)
+app.include_router(leaderboard.router)
 
 
 @app.get("/health")
