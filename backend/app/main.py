@@ -161,6 +161,33 @@ async def opensky_health() -> dict[str, int | str | bool | None]:
     }
 
 
+# KJFK's coordinates (see alembic/versions/0004_seed_aircraft_types_and_locked_airports.py)
+# -- an arbitrary but real, high-traffic seeded airport, used only to prove
+# reachability, not to fetch anything the app actually needs yet.
+_ADSB_PROBE_URL = "https://opendata.adsb.fi/api/v2/lat/40.6413/lon/-73.7781/dist/25"
+
+
+@app.get("/health/adsb")
+async def adsb_health() -> dict[str, int | str | None]:
+    """One-shot reachability check for adsb.fi (a free, unauthenticated
+    community ADS-B feed being evaluated as an OpenSky replacement, since
+    OpenSky's own docs say they may block hyperscaler/cloud IP ranges --
+    exactly the class of network Render's egress falls into). This is the
+    same "prove it before building on it" check /health/opensky already
+    demonstrated the value of -- don't assume reachability from a sandbox
+    test alone.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as probe:
+            response = await probe.get(_ADSB_PROBE_URL)
+        return {
+            "status_code": response.status_code,
+            "detail": None if response.is_success else response.text[:300],
+        }
+    except httpx.HTTPError as exc:
+        return {"status_code": None, "detail": f"{exc.__class__.__name__}: {exc}"}
+
+
 # Registered last so it only catches requests no API route above matched.
 # Absent in local dev unless you've run `npm run build` -- the frontend
 # normally runs separately via `npm run dev` there (see README).
