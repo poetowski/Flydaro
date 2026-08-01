@@ -159,7 +159,12 @@ class AdsbClient:
         response.raise_for_status()
 
         body = response.json()
-        aircraft = body.get("aircraft") or []
+        # Unlike get_states_near's /v2/lat/lon/dist endpoint, /v2/hex/
+        # wraps its result under "ac", not "aircraft" -- confirmed live
+        # against the real API; using the wrong key here silently made
+        # every on-demand landing check look like "aircraft not found",
+        # regardless of whether it actually was.
+        aircraft = body.get("ac") or []
         return StateVector.from_adsb_json(aircraft[0]) if aircraft else None
 
 
