@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { listAircraftFamilies } from "../api/aircraftFamilies";
 import { listAirports } from "../api/airports";
@@ -10,14 +11,18 @@ import { getWallet, getWalletLedger } from "../api/wallet";
 import { CreditsChart, type CreditsChartPoint } from "../components/CreditsChart";
 import { useLanguage, dateLocale } from "../i18n";
 import { translateApiError } from "../i18n/translateApiError";
+import { ACHIEVEMENTS, type AchievementData } from "../lib/achievements";
 import { useReasonLabel } from "../lib/ledgerLabels";
 import { familyBadgeLabel } from "../lib/familyLabel";
+import { getSeenAchievements, markSeen } from "../lib/seenAchievements";
+import { useToast } from "../lib/ToastContext";
 
 const ACTIVE_STATUSES = new Set(["FLYING", "IN_PROGRESS", "RESOLVING"]);
 const RECENT_ACTIVITY_COUNT = 5;
 
 export function DashboardPage() {
   const { t, tPlural, language } = useLanguage();
+  const { showToast } = useToast();
   const reasonLabel = useReasonLabel();
   const { data: wallet } = useQuery({ queryKey: ["wallet"], queryFn: getWallet });
   const {
@@ -85,6 +90,39 @@ export function DashboardPage() {
         year: "numeric",
       })
     : null;
+
+  // Next Goal: cheapest currently-locked airport/family, if any remain.
+  const cheapestLockedAirport = (airports ?? [])
+    .filter((a) => !a.unlocked)
+    .sort((a, b) => a.unlock_cost_credits - b.unlock_cost_credits)[0];
+  const cheapestLockedFamily = (aircraftFamilies ?? [])
+    .filter((f) => !f.unlocked)
+    .sort((a, b) => a.unlock_cost_credits - b.unlock_cost_credits)[0];
+  const balance = wallet?.balance_credits ?? 0;
+
+  const achievementData: AchievementData = {
+    rentals: rentals ?? [],
+    ledger: ledger ?? [],
+    wallet,
+    airports: airports ?? [],
+    aircraftFamilies: aircraftFamilies ?? [],
+    crewOverview: crewOverview ?? [],
+    myRank,
+  };
+  const earnedIds = ACHIEVEMENTS.filter((a) => a.computeEarned(achievementData)).map((a) => a.id);
+  const earnedIdsKey = earnedIds.join(",");
+
+  useEffect(() => {
+    if (earnedIds.length === 0) return;
+    const seen = getSeenAchievements();
+    const newlyEarned = earnedIds.filter((id) => !seen.has(id));
+    if (newlyEarned.length === 0) return;
+    newlyEarned.forEach((id) => {
+      showToast(t("dashboard.achievementUnlockedToast", { title: t(`achievements.${id}.title`) }));
+    });
+    markSeen(newlyEarned);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [earnedIdsKey]);
 
   return (
     <div className="page">
@@ -161,6 +199,73 @@ export function DashboardPage() {
           })}
         </p>
       )}
+
+      <section className="card">
+        <h2>{t("dashboard.nextGoalHeading")}</h2>
+        {!cheapestLockedAirport && !cheapestLockedFamily ? (
+          <p>{t("dashboard.nextGoalAllUnlocked")}</p>
+        ) : (
+          <>
+            {cheapestLockedAirport && (
+              <div style={{ marginBottom: 12 }}>
+                <p className="flight-meta">
+                  {t("dashboard.nextGoalAirport", {
+                    name: cheapestLockedAirport.name,
+                    balance: Math.min(balance, cheapestLockedAirport.unlock_cost_credits),
+                    cost: cheapestLockedAirport.unlock_cost_credits,
+                  })}
+                </p>
+                <div className="progress-bar">
+                  <div
+                    className="progress-bar-fill"
+                    style={{
+                      width: `${Math.min(100, (balance / cheapestLockedAirport.unlock_cost_credits) * 100)}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+            {cheapestLockedFamily && (
+              <div>
+                <p className="flight-meta">
+                  {t("dashboard.nextGoalFamily", {
+                    name: cheapestLockedFamily.name,
+                    balance: Math.min(balance, cheapestLockedFamily.unlock_cost_credits),
+                    cost: cheapestLockedFamily.unlock_cost_credits,
+                  })}
+                </p>
+                <div className="progress-bar">
+                  <div
+                    className="progress-bar-fill"
+                    style={{
+                      width: `${Math.min(100, (balance / cheapestLockedFamily.unlock_cost_credits) * 100)}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </section>
+
+      <section className="card">
+        <h2>{t("dashboard.achievementsHeading")}</h2>
+        <div className="achievement-grid">
+          {ACHIEVEMENTS.map((achievement) => {
+            const earned = earnedIds.includes(achievement.id);
+            return (
+              <div
+                key={achievement.id}
+                className={`achievement-badge ${earned ? "achievement-badge-earned" : "achievement-badge-locked"}`}
+                title={t(`achievements.${achievement.id}.description`)}
+              >
+                <span className="achievement-badge-icon">{achievement.icon}</span>
+                <span className="achievement-badge-title">{t(`achievements.${achievement.id}.title`)}</span>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
       {unclaimedRentals.length > 0 && (
         <section className="card card-highlight">
