@@ -28,7 +28,7 @@ export function FlightBoardPage() {
   const queryClient = useQueryClient();
   const [airportId, setAirportId] = useState<number | "all">("all");
   const [aircraftFamilyId, setAircraftFamilyId] = useState<number | "all">("all");
-  const [showOnlyIdleCrew, setShowOnlyIdleCrew] = useState(false);
+  const [showOnlyIdleCrew, setShowOnlyIdleCrew] = useState(true);
 
   const {
     data: airports,
