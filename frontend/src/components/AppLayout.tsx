@@ -6,6 +6,7 @@ import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../i18n";
 import { PAGE_ICONS } from "../lib/pageIcons";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { ThemeToggle } from "./ThemeToggle";
 
 export function AppLayout() {
   const { logout } = useAuth();
@@ -68,6 +69,7 @@ export function AppLayout() {
             {wallet ? `${wallet.balance_credits} ${t("common.creditsShort")}` : "..."}
           </span>
           <LanguageSwitcher />
+          <ThemeToggle />
           <button onClick={handleLogout}>{t("nav.logOut")}</button>
         </div>
       </header>

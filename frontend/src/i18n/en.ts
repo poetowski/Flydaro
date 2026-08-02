@@ -20,6 +20,10 @@ export const en = {
     ourStory: "Our Story",
     logOut: "Log out",
   },
+  theme: {
+    switchToDark: "Switch to dark mode",
+    switchToLight: "Switch to light mode",
+  },
   appLayout: {
     readyToClaim: {
       one: "{{count}} ready to claim",

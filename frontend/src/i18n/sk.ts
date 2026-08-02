@@ -20,6 +20,10 @@ export const sk: Dict = {
     ourStory: "Náš príbeh",
     logOut: "Odhlásiť sa",
   },
+  theme: {
+    switchToDark: "Prepnúť na tmavý režim",
+    switchToLight: "Prepnúť na svetlý režim",
+  },
   appLayout: {
     readyToClaim: {
       one: "{{count}} pripravená na vyzdvihnutie",

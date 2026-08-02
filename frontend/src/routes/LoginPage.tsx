@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
+import { ThemeToggle } from "../components/ThemeToggle";
 import { useLanguage } from "../i18n";
 import { translateApiError } from "../i18n/translateApiError";
 
@@ -31,7 +32,10 @@ export function LoginPage() {
 
   return (
     <div className="auth-page">
-      <LanguageSwitcher />
+      <div className="corner-controls">
+        <LanguageSwitcher />
+        <ThemeToggle />
+      </div>
       <form className="auth-form" onSubmit={handleSubmit}>
         <h1>✈️ Flydaro</h1>
         <p className="subtitle">{t("login.subtitle")}</p>

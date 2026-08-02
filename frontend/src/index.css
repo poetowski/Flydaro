@@ -41,6 +41,45 @@
   }
 }
 
+/* Explicit user choice (the theme toggle) always wins over the OS-level
+   prefers-color-scheme media query above -- the attribute selector's higher
+   specificity guarantees this regardless of source order. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --text: #2a2a30;
+  --text-muted: #6b6375;
+  --bg: #fafafa;
+  --card-bg: #ffffff;
+  --border: #e2e2e6;
+  --accent: #6b3bff;
+  --accent-contrast: #ffffff;
+  --success: #1a9a5b;
+  --danger: #c0392b;
+  --warning: #b45309;
+  --warning-contrast: #ffffff;
+  --sky: #2f8fff;
+  --sky-contrast: #ffffff;
+  --shadow-sm: 0 1px 2px rgba(20, 15, 40, 0.06), 0 2px 8px rgba(20, 15, 40, 0.06);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --text: #e5e4e8;
+  --text-muted: #9ca3af;
+  --bg: #14151a;
+  --card-bg: #1d1e25;
+  --border: #2e303a;
+  --accent: #a684ff;
+  --accent-contrast: #14151a;
+  --success: #34c281;
+  --danger: #e0665a;
+  --warning: #fbbf24;
+  --warning-contrast: #14151a;
+  --sky: #5ab0ff;
+  --sky-contrast: #0b1220;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -153,10 +192,12 @@ select {
   margin-top: 0;
 }
 
-.page > .language-switcher {
+.page > .corner-controls {
   position: absolute;
   top: 16px;
   right: 16px;
+  display: flex;
+  gap: 8px;
 }
 
 .card {
@@ -275,13 +316,16 @@ button:disabled {
   padding: 20px;
 }
 
-.auth-page .language-switcher {
+.auth-page .corner-controls {
   position: absolute;
   top: 16px;
   right: 16px;
+  display: flex;
+  gap: 8px;
 }
 
-.language-switcher {
+.language-switcher,
+.theme-toggle {
   display: inline-block;
   background: transparent;
   color: inherit;

@@ -5,6 +5,7 @@ import { RouterProvider } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthContext";
 import "./index.css";
 import { LanguageProvider } from "./i18n";
+import { ThemeProvider } from "./lib/ThemeContext";
 import { ToastProvider } from "./lib/ToastContext";
 import { router } from "./router";
 
@@ -13,13 +14,15 @@ const queryClient = new QueryClient();
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <LanguageProvider>
-        <AuthProvider>
-          <ToastProvider>
-            <RouterProvider router={router} />
-          </ToastProvider>
-        </AuthProvider>
-      </LanguageProvider>
+      <ThemeProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <ToastProvider>
+              <RouterProvider router={router} />
+            </ToastProvider>
+          </AuthProvider>
+        </LanguageProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   </StrictMode>,
 );
