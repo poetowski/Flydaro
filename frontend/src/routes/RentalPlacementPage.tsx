@@ -8,6 +8,8 @@ import { getFlight } from "../api/flights";
 import { Modal } from "../components/Modal";
 import { useToast } from "../lib/ToastContext";
 
+const RENTAL_FEE_MARKS = [100, 250, 500, 1000];
+
 export function RentalPlacementPage() {
   const { flightId } = useParams<{ flightId: string }>();
   const numericFlightId = Number(flightId);
@@ -27,12 +29,16 @@ export function RentalPlacementPage() {
   const { data: itemTypes } = useQuery({ queryKey: ["item-types"], queryFn: listItemTypes });
 
   const [itemTypeId, setItemTypeId] = useState<number | null>(null);
-  const [rentalFee, setRentalFee] = useState(100);
+  const [rentalFeeIndex, setRentalFeeIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
   const selectedItem = itemTypes?.find((item) => item.id === itemTypeId);
+  const rentalFee = RENTAL_FEE_MARKS[rentalFeeIndex];
+  const minFeeIndex = selectedItem
+    ? RENTAL_FEE_MARKS.findIndex((mark) => mark >= selectedItem.base_cost_credits)
+    : 0;
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -104,7 +110,10 @@ export function RentalPlacementPage() {
                 checked={itemTypeId === item.id}
                 onChange={() => {
                   setItemTypeId(item.id);
-                  setRentalFee((prev) => Math.max(prev, item.base_cost_credits));
+                  const requiredIndex = RENTAL_FEE_MARKS.findIndex(
+                    (mark) => mark >= item.base_cost_credits,
+                  );
+                  setRentalFeeIndex((prev) => Math.max(prev, requiredIndex));
                 }}
               />
               <span>
@@ -117,13 +126,20 @@ export function RentalPlacementPage() {
         </fieldset>
 
         <label>
-          Rental fee (credits)
+          Rental fee: <strong>{rentalFee} credits</strong>
           <input
-            type="number"
-            min={1}
-            value={rentalFee}
-            onChange={(e) => setRentalFee(Number(e.target.value))}
+            type="range"
+            min={minFeeIndex}
+            max={RENTAL_FEE_MARKS.length - 1}
+            step={1}
+            value={rentalFeeIndex}
+            onChange={(e) => setRentalFeeIndex(Number(e.target.value))}
           />
+          <span className="rental-fee-marks">
+            {RENTAL_FEE_MARKS.map((mark) => (
+              <span key={mark}>{mark}</span>
+            ))}
+          </span>
         </label>
 
         <button type="submit" disabled={submitting}>

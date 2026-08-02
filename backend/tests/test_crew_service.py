@@ -15,9 +15,9 @@ async def _fund(db, user, amount=2000):
 
 
 def test_hire_cost_scales_with_existing_crew():
-    assert crew_service.hire_cost(0) == 300
-    assert crew_service.hire_cost(1) == 600
-    assert crew_service.hire_cost(2) == 900
+    assert crew_service.hire_cost(0) == 600
+    assert crew_service.hire_cost(1) == 1200
+    assert crew_service.hire_cost(2) == 1800
 
 
 async def test_hire_crew_debits_wallet_and_increments_count(db, user, airport):

@@ -317,13 +317,20 @@ button:disabled {
   color: var(--text-muted);
 }
 
-.rental-form input[type="number"] {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 10px;
-  background: var(--card-bg);
-  color: var(--text);
-  max-width: 200px;
+.rental-form input[type="range"] {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  margin-top: 6px;
+}
+
+.rental-fee-marks {
+  display: flex;
+  justify-content: space-between;
+  max-width: 320px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin-top: 2px;
 }
 
 .rental-status {

@@ -1,12 +1,13 @@
 from datetime import datetime
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 
 class CreateRentalRequest(BaseModel):
     tracked_flight_id: int
     item_type_id: int
-    rental_fee_credits: int = Field(gt=0)
+    rental_fee_credits: Literal[100, 250, 500, 1000]
 
 
 class RentalOut(BaseModel):

@@ -13,7 +13,7 @@ from app.services.wallet_service import apply_ledger_entry
 # Adjustable default, like every other seeded economy number in this
 # codebase. Scales with how many crew already exist at that specific
 # airport: 1st hire there costs this much, 2nd costs double, etc.
-CREW_BASE_COST_CREDITS = 300
+CREW_BASE_COST_CREDITS = 600
 
 # A rental still ties up its origin airport's crew member until its flight
 # resolves -- claiming the reward afterward is a separate wallet action
