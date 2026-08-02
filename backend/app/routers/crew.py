@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.error_detail import error_detail
 from app.core.exceptions import InsufficientFundsError, LicenseRequiredError, NotFoundError
 from app.core.security import get_current_user
 from app.db.session import get_db
@@ -42,13 +43,13 @@ async def hire_crew(
         crew = await crew_service.hire_crew(db, current_user.id, airport_id)
     except NotFoundError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error_detail(exc)) from exc
     except LicenseRequiredError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=error_detail(exc)) from exc
     except InsufficientFundsError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_detail(exc)) from exc
     await db.commit()
 
     airport = await db.get(Airport, airport_id)

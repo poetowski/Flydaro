@@ -79,9 +79,12 @@ async def get_crew_overview(db: AsyncSession, user_id: int) -> list[tuple[Airpor
 async def hire_crew(db: AsyncSession, user_id: int, airport_id: int) -> UserAirportCrew:
     airport = await db.get(Airport, airport_id)
     if airport is None:
-        raise NotFoundError("Airport not found")
+        raise NotFoundError("Airport not found", code="AIRPORT_NOT_FOUND")
     if not await license_service.user_has_airport_unlock(db, user_id, airport):
-        raise LicenseRequiredError("You must unlock this airport before hiring crew there")
+        raise LicenseRequiredError(
+            "You must unlock this airport before hiring crew there",
+            code="LICENSE_REQUIRED_AIRPORT_FOR_CREW",
+        )
 
     crew = await db.get(UserAirportCrew, (user_id, airport_id))
     current_count = crew.crew_count if crew else 0

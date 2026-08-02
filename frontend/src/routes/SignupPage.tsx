@@ -2,10 +2,14 @@ import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import { LanguageSwitcher } from "../components/LanguageSwitcher";
+import { useLanguage } from "../i18n";
+import { translateApiError } from "../i18n/translateApiError";
 
 export function SignupPage() {
   const { signup } = useAuth();
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
@@ -20,7 +24,7 @@ export function SignupPage() {
       await signup(email, password, displayName);
       navigate("/");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Signup failed");
+      setError(err instanceof ApiError ? translateApiError(err, t) : t("signup.signupFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -28,14 +32,13 @@ export function SignupPage() {
 
   return (
     <div className="auth-page">
+      <LanguageSwitcher />
       <form className="auth-form" onSubmit={handleSubmit}>
         <h1>Flydaro</h1>
-        <p className="subtitle">
-          Create an account and get a starting balance to rent capacity on real flights.
-        </p>
+        <p className="subtitle">{t("signup.subtitle")}</p>
         {error && <p className="form-error">{error}</p>}
         <label>
-          Display name
+          {t("signup.displayNameLabel")}
           <input
             required
             value={displayName}
@@ -44,7 +47,7 @@ export function SignupPage() {
           />
         </label>
         <label>
-          Email
+          {t("auth.emailLabel")}
           <input
             type="email"
             required
@@ -54,7 +57,7 @@ export function SignupPage() {
           />
         </label>
         <label>
-          Password
+          {t("auth.passwordLabel")}
           <input
             type="password"
             required
@@ -65,10 +68,11 @@ export function SignupPage() {
           />
         </label>
         <button type="submit" disabled={submitting}>
-          {submitting ? "Creating account..." : "Sign up"}
+          {submitting ? t("signup.creatingAccount") : t("signup.signUp")}
         </button>
         <p className="auth-switch">
-          Already have an account? <Link to="/login">Log in</Link>
+          {t("signup.alreadyHaveAccountPre")}
+          <Link to="/login">{t("signup.logInLink")}</Link>
         </p>
       </form>
     </div>

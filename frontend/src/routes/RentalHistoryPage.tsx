@@ -8,18 +8,14 @@ import { listItemTypes } from "../api/itemTypes";
 import { claimRental, listMyRentals, type Rental } from "../api/rentals";
 import { FlightTraceChart, type FlightTracePoint } from "../components/FlightTraceChart";
 import { Modal } from "../components/Modal";
+import { useLanguage, dateLocale } from "../i18n";
+import { translateApiError } from "../i18n/translateApiError";
 import { familyBadgeLabel } from "../lib/familyLabel";
+import { itemLabel } from "../lib/itemLabels";
 import { useToast } from "../lib/ToastContext";
 
-const STATUS_LABELS: Record<string, string> = {
-  FLYING: "Flying (open for rentals)",
-  IN_PROGRESS: "In flight",
-  RESOLVING: "Landing...",
-  RESOLVED: "Resolved",
-  CLAIMED: "Claimed",
-};
-
 function RentalDetailModal({ rental, onClose }: { rental: Rental; onClose: () => void }) {
+  const { t, language } = useLanguage();
   const { data: flight } = useQuery({
     queryKey: ["flights", rental.tracked_flight_id],
     queryFn: () => getFlight(rental.tracked_flight_id),
@@ -36,6 +32,9 @@ function RentalDetailModal({ rental, onClose }: { rental: Rental; onClose: () =>
   });
 
   const itemType = itemTypes?.find((t) => t.id === rental.item_type_id);
+  const itemDisplayName = itemType
+    ? itemLabel(itemType.code, language, { name: itemType.name, flavorText: itemType.flavor_text }).name
+    : `#${rental.item_type_id}`;
   const airport = flight ? airports?.find((a) => a.id === flight.origin_airport_id) : undefined;
   const aircraftType = flight?.aircraft_type_id
     ? aircraftTypes?.find((t) => t.id === flight.aircraft_type_id)
@@ -44,75 +43,88 @@ function RentalDetailModal({ rental, onClose }: { rental: Rental; onClose: () =>
     .filter((s): s is typeof s & { baro_altitude: number } => s.baro_altitude !== null)
     .map((s) => ({ date: new Date(s.observed_at), altitude: s.baro_altitude }));
 
+  const locale = dateLocale(language);
+
   return (
     <Modal title={rental.display_code} onClose={onClose}>
       <div className="modal-row">
-        <span className="modal-row-label">Status</span>
-        <span>{STATUS_LABELS[rental.status] ?? rental.status}</span>
+        <span className="modal-row-label">{t("rentalHistory.statusLabel")}</span>
+        <span>{t(`rentalStatus.${rental.status}`)}</span>
       </div>
       <div className="modal-row">
-        <span className="modal-row-label">Item</span>
-        <span>{itemType ? itemType.name : `#${rental.item_type_id}`}</span>
+        <span className="modal-row-label">{t("rentalHistory.itemLabel")}</span>
+        <span>{itemDisplayName}</span>
       </div>
       <div className="modal-row">
-        <span className="modal-row-label">Rental fee</span>
-        <span>{rental.rental_fee_credits} credits</span>
+        <span className="modal-row-label">{t("rentalHistory.rentalFeeLabel")}</span>
+        <span>{t("common.creditsAmount", { amount: rental.rental_fee_credits })}</span>
       </div>
       <div className="modal-row">
-        <span className="modal-row-label">Rented at</span>
-        <span>{new Date(rental.rented_at).toLocaleString()}</span>
+        <span className="modal-row-label">{t("rentalHistory.rentedAtLabel")}</span>
+        <span>{new Date(rental.rented_at).toLocaleString(locale)}</span>
       </div>
 
       {rental.resolved_at && (
         <>
           <div className="modal-row">
-            <span className="modal-row-label">Resolved at</span>
-            <span>{new Date(rental.resolved_at).toLocaleString()}</span>
+            <span className="modal-row-label">{t("rentalHistory.resolvedAtLabel")}</span>
+            <span>{new Date(rental.resolved_at).toLocaleString(locale)}</span>
           </div>
           <div className="modal-row">
-            <span className="modal-row-label">Resolution</span>
-            <span>{rental.resolution_reason ?? "--"}</span>
+            <span className="modal-row-label">{t("rentalHistory.resolutionLabel")}</span>
+            <span>
+              {rental.resolution_reason
+                ? t(`resolutionReason.${rental.resolution_reason}`)
+                : t("rentalHistory.noneDash")}
+            </span>
           </div>
           <div className="modal-row">
-            <span className="modal-row-label">Settlement</span>
-            <span>{rental.settlement_credits} credits</span>
+            <span className="modal-row-label">{t("rentalHistory.settlementLabel")}</span>
+            <span>{t("common.creditsAmount", { amount: rental.settlement_credits ?? 0 })}</span>
           </div>
         </>
       )}
       {rental.claimed_at && (
         <div className="modal-row">
-          <span className="modal-row-label">Claimed at</span>
-          <span>{new Date(rental.claimed_at).toLocaleString()}</span>
+          <span className="modal-row-label">{t("rentalHistory.claimedAtLabel")}</span>
+          <span>{new Date(rental.claimed_at).toLocaleString(locale)}</span>
         </div>
       )}
 
       <div className="modal-row">
-        <span className="modal-row-label">Flight</span>
-        <span>{flight?.callsign ?? flight?.icao24 ?? "Loading..."}</span>
+        <span className="modal-row-label">{t("rentalHistory.flightLabel")}</span>
+        <span>{flight?.callsign ?? flight?.icao24 ?? t("rentalHistory.loadingEllipsis")}</span>
       </div>
       <div className="modal-row">
-        <span className="modal-row-label">Aircraft</span>
-        <span>{aircraftType ? aircraftType.name : "Unknown"}</span>
+        <span className="modal-row-label">{t("rentalHistory.aircraftLabel")}</span>
+        <span>{aircraftType ? aircraftType.name : t("rentalHistory.unknownAircraft")}</span>
       </div>
       <div className="modal-row">
-        <span className="modal-row-label">Origin airport</span>
-        <span>{airport ? `${airport.name} (${airport.icao4})` : "Loading..."}</span>
+        <span className="modal-row-label">{t("rentalHistory.originAirportLabel")}</span>
+        <span>
+          {airport ? `${airport.name} (${airport.icao4})` : t("rentalHistory.loadingEllipsis")}
+        </span>
       </div>
       {flight && (
         <>
           <div className="modal-row">
-            <span className="modal-row-label">First seen airborne</span>
-            <span>{new Date(flight.first_seen_at).toLocaleString()}</span>
+            <span className="modal-row-label">{t("rentalHistory.firstSeenLabel")}</span>
+            <span>{new Date(flight.first_seen_at).toLocaleString(locale)}</span>
           </div>
           <div className="modal-row">
-            <span className="modal-row-label">Last seen</span>
-            <span>{new Date(flight.last_seen_at).toLocaleString()}</span>
+            <span className="modal-row-label">{t("rentalHistory.lastSeenLabel")}</span>
+            <span>{new Date(flight.last_seen_at).toLocaleString(locale)}</span>
           </div>
         </>
       )}
 
-      <h3>Flight Trace</h3>
-      <FlightTraceChart points={tracePoints} />
+      <h3>{t("rentalHistory.flightTraceHeading")}</h3>
+      <FlightTraceChart
+        points={tracePoints}
+        language={language}
+        emptyLabel={t("charts.flightTraceEmpty")}
+        ariaLabel={t("charts.flightTraceLabel")}
+      />
     </Modal>
   );
 }
@@ -120,6 +132,7 @@ function RentalDetailModal({ rental, onClose }: { rental: Rental; onClose: () =>
 export function RentalHistoryPage() {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const [selectedRental, setSelectedRental] = useState<Rental | null>(null);
   const { data: rentals, isLoading } = useQuery({
     queryKey: ["rentals", "mine"],
@@ -129,15 +142,15 @@ export function RentalHistoryPage() {
     mutationFn: claimRental,
     onSuccess: (rental) => {
       queryClient.invalidateQueries({ queryKey: ["rentals", "mine"] });
-      showToast(`Reward claimed: ${rental.settlement_credits} credits`);
+      showToast(t("rentalHistory.toastClaimed", { amount: rental.settlement_credits ?? 0 }));
     },
   });
 
   return (
     <div className="page">
-      <h1>Rental History</h1>
-      {isLoading && <p>Loading rentals...</p>}
-      {!isLoading && rentals?.length === 0 && <p>No capacity rented yet.</p>}
+      <h1>{t("rentalHistory.title")}</h1>
+      {isLoading && <p>{t("rentalHistory.loadingRentals")}</p>}
+      {!isLoading && rentals?.length === 0 && <p>{t("rentalHistory.noRentals")}</p>}
 
       <ul className="rental-list">
         {rentals?.map((rental) => (
@@ -150,7 +163,7 @@ export function RentalHistoryPage() {
             <div>
               <strong>{rental.display_code}</strong>
               <span className={`rental-status rental-status-${rental.status.toLowerCase()}`}>
-                {rental.status}
+                {t(`rentalStatusBadge.${rental.status}`)}
               </span>
             </div>
             <div>
@@ -163,11 +176,11 @@ export function RentalHistoryPage() {
                 </span>
               )}
             </div>
-            <div>Rental fee: {rental.rental_fee_credits} credits</div>
+            <div>{t("rentalHistory.rentalFeeLine", { amount: rental.rental_fee_credits })}</div>
             {rental.status === "RESOLVED" && (
               <div>
-                Settlement: {rental.settlement_credits} credits
-                {rental.resolution_reason && ` (${rental.resolution_reason})`}
+                {t("rentalHistory.settlementLine", { amount: rental.settlement_credits ?? 0 })}
+                {rental.resolution_reason && ` (${t(`resolutionReason.${rental.resolution_reason}`)})`}
                 <button
                   className="button"
                   disabled={claimMutation.isPending}
@@ -176,14 +189,14 @@ export function RentalHistoryPage() {
                     claimMutation.mutate(rental.id);
                   }}
                 >
-                  Claim {rental.settlement_credits} credits
+                  {t("rentalHistory.claimButton", { amount: rental.settlement_credits ?? 0 })}
                 </button>
               </div>
             )}
             {rental.status === "CLAIMED" && (
               <div>
-                Claimed: {rental.settlement_credits} credits
-                {rental.resolution_reason && ` (${rental.resolution_reason})`}
+                {t("rentalHistory.claimedLine", { amount: rental.settlement_credits ?? 0 })}
+                {rental.resolution_reason && ` (${t(`resolutionReason.${rental.resolution_reason}`)})`}
               </div>
             )}
           </li>
@@ -193,8 +206,8 @@ export function RentalHistoryPage() {
       {claimMutation.isError && (
         <p className="form-error">
           {claimMutation.error instanceof ApiError
-            ? claimMutation.error.message
-            : "Could not claim reward"}
+            ? translateApiError(claimMutation.error, t)
+            : t("rentalHistory.couldNotClaim")}
         </p>
       )}
 

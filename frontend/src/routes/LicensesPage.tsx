@@ -5,11 +5,14 @@ import { listAirports, type Airport } from "../api/airports";
 import { ApiError } from "../api/client";
 import { unlockAircraftFamily, unlockAirport } from "../api/licenses";
 import { Modal } from "../components/Modal";
+import { useLanguage } from "../i18n";
+import { translateApiError } from "../i18n/translateApiError";
 import { useToast } from "../lib/ToastContext";
 
 export function LicensesPage() {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const [error, setError] = useState<string | null>(null);
   const [confirmingAirport, setConfirmingAirport] = useState<Airport | null>(null);
   const [confirmingFamily, setConfirmingFamily] = useState<AircraftFamily | null>(null);
@@ -46,9 +49,10 @@ export function LicensesPage() {
       setConfirmingAirport(null);
       queryClient.invalidateQueries({ queryKey: ["wallet"] });
       queryClient.invalidateQueries({ queryKey: ["airports"] });
-      showToast(`Unlocked ${airport.name}`);
+      showToast(t("licenses.toastUnlockedAirport", { name: airport.name }));
     },
-    onError: (err) => setError(err instanceof ApiError ? err.message : "Could not unlock airport"),
+    onError: (err) =>
+      setError(err instanceof ApiError ? translateApiError(err, t) : t("licenses.couldNotUnlockAirport")),
   });
 
   const unlockAircraftFamilyMutation = useMutation({
@@ -58,24 +62,23 @@ export function LicensesPage() {
       setConfirmingFamily(null);
       queryClient.invalidateQueries({ queryKey: ["wallet"] });
       queryClient.invalidateQueries({ queryKey: ["aircraft-families"] });
-      showToast(`Unlocked ${family.name}`);
+      showToast(t("licenses.toastUnlockedFamily", { name: family.name }));
     },
     onError: (err) =>
-      setError(err instanceof ApiError ? err.message : "Could not unlock aircraft family"),
+      setError(err instanceof ApiError ? translateApiError(err, t) : t("licenses.couldNotUnlockFamily")),
   });
 
   return (
     <div className="page">
-      <h1>Licenses</h1>
+      <h1>{t("licenses.title")}</h1>
       {error && <p className="form-error">{error}</p>}
 
       <section className="card">
-        <h2>Airport Licenses</h2>
-        {airportsIsLoading && <p>Loading airports...</p>}
+        <h2>{t("licenses.airportLicensesHeading")}</h2>
+        {airportsIsLoading && <p>{t("licenses.loadingAirports")}</p>}
         {airportsIsError && (
           <p className="form-error">
-            Could not load airports:{" "}
-            {airportsError instanceof ApiError ? airportsError.message : "unknown error"}
+            {t("licenses.couldNotLoadAirports", { error: translateApiError(airportsError, t) })}
           </p>
         )}
         <ul className="license-list">
@@ -86,13 +89,13 @@ export function LicensesPage() {
                 {airport.country}
               </div>
               {airport.unlocked ? (
-                <span className="badge badge-unlocked">Unlocked</span>
+                <span className="badge badge-unlocked">{t("licenses.unlockedBadge")}</span>
               ) : (
                 <button
                   onClick={() => setConfirmingAirport(airport)}
                   disabled={unlockAirportMutation.isPending}
                 >
-                  Unlock ({airport.unlock_cost_credits} cr)
+                  {t("licenses.unlockButton", { amount: airport.unlock_cost_credits })}
                 </button>
               )}
             </li>
@@ -101,12 +104,13 @@ export function LicensesPage() {
       </section>
 
       <section className="card">
-        <h2>Pilot Licenses</h2>
-        {aircraftFamiliesIsLoading && <p>Loading aircraft licenses...</p>}
+        <h2>{t("licenses.pilotLicensesHeading")}</h2>
+        {aircraftFamiliesIsLoading && <p>{t("licenses.loadingAircraftLicenses")}</p>}
         {aircraftFamiliesIsError && (
           <p className="form-error">
-            Could not load aircraft licenses:{" "}
-            {aircraftFamiliesError instanceof ApiError ? aircraftFamiliesError.message : "unknown error"}
+            {t("licenses.couldNotLoadAircraftLicenses", {
+              error: translateApiError(aircraftFamiliesError, t),
+            })}
           </p>
         )}
         <ul className="license-list">
@@ -115,17 +119,18 @@ export function LicensesPage() {
               <div>
                 <strong>{family.name}</strong>
                 <div className="flight-meta">
-                  Covers: {family.member_types.map((t) => t.name).join(", ")}
+                  {t("licenses.coversPrefix")}
+                  {family.member_types.map((memberType) => memberType.name).join(", ")}
                 </div>
               </div>
               {family.unlocked ? (
-                <span className="badge badge-unlocked">Unlocked</span>
+                <span className="badge badge-unlocked">{t("licenses.unlockedBadge")}</span>
               ) : (
                 <button
                   onClick={() => setConfirmingFamily(family)}
                   disabled={unlockAircraftFamilyMutation.isPending}
                 >
-                  Unlock ({family.unlock_cost_credits} cr)
+                  {t("licenses.unlockButton", { amount: family.unlock_cost_credits })}
                 </button>
               )}
             </li>
@@ -134,38 +139,43 @@ export function LicensesPage() {
       </section>
 
       {confirmingAirport && (
-        <Modal title="Confirm airport license" onClose={() => setConfirmingAirport(null)}>
+        <Modal title={t("licenses.confirmAirportTitle")} onClose={() => setConfirmingAirport(null)}>
           <p>
-            Unlock <strong>{confirmingAirport.name}</strong> ({confirmingAirport.icao4}) for{" "}
-            <strong>{confirmingAirport.unlock_cost_credits} credits</strong>?
+            {t("licenses.confirmAirportBody", {
+              name: confirmingAirport.name,
+              icao4: confirmingAirport.icao4,
+              amount: confirmingAirport.unlock_cost_credits,
+            })}
           </p>
           <div className="modal-row" style={{ justifyContent: "flex-end", gap: 8 }}>
-            <button onClick={() => setConfirmingAirport(null)}>Cancel</button>
+            <button onClick={() => setConfirmingAirport(null)}>{t("common.cancel")}</button>
             <button
               className="button"
               disabled={unlockAirportMutation.isPending}
               onClick={() => unlockAirportMutation.mutate(confirmingAirport.id)}
             >
-              {unlockAirportMutation.isPending ? "Unlocking..." : "Confirm"}
+              {unlockAirportMutation.isPending ? t("licenses.unlockingButton") : t("common.confirm")}
             </button>
           </div>
         </Modal>
       )}
 
       {confirmingFamily && (
-        <Modal title="Confirm pilot license" onClose={() => setConfirmingFamily(null)}>
+        <Modal title={t("licenses.confirmFamilyTitle")} onClose={() => setConfirmingFamily(null)}>
           <p>
-            Unlock <strong>{confirmingFamily.name}</strong> for{" "}
-            <strong>{confirmingFamily.unlock_cost_credits} credits</strong>?
+            {t("licenses.confirmFamilyBody", {
+              name: confirmingFamily.name,
+              amount: confirmingFamily.unlock_cost_credits,
+            })}
           </p>
           <div className="modal-row" style={{ justifyContent: "flex-end", gap: 8 }}>
-            <button onClick={() => setConfirmingFamily(null)}>Cancel</button>
+            <button onClick={() => setConfirmingFamily(null)}>{t("common.cancel")}</button>
             <button
               className="button"
               disabled={unlockAircraftFamilyMutation.isPending}
               onClick={() => unlockAircraftFamilyMutation.mutate(confirmingFamily.id)}
             >
-              {unlockAircraftFamilyMutation.isPending ? "Unlocking..." : "Confirm"}
+              {unlockAircraftFamilyMutation.isPending ? t("licenses.unlockingButton") : t("common.confirm")}
             </button>
           </div>
         </Modal>

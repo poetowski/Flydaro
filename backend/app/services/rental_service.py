@@ -49,34 +49,44 @@ async def create_rental(
 ) -> Rental:
     flight = await db.get(TrackedFlight, tracked_flight_id)
     if flight is None:
-        raise NotFoundError("Flight not found")
+        raise NotFoundError("Flight not found", code="FLIGHT_NOT_FOUND")
     if not flight.capacity_open or flight.status != TrackedFlightStatus.AIRBORNE_OPEN:
-        raise CapacityClosedError("Capacity on this flight is no longer available to rent")
+        raise CapacityClosedError(
+            "Capacity on this flight is no longer available to rent", code="CAPACITY_CLOSED"
+        )
 
     airport = await db.get(Airport, flight.origin_airport_id)
     if not await license_service.user_has_airport_unlock(db, user_id, airport):
-        raise LicenseRequiredError("You have not unlocked this airport")
+        raise LicenseRequiredError("You have not unlocked this airport", code="LICENSE_REQUIRED_AIRPORT")
 
     if flight.aircraft_type_id is None:
-        raise LicenseRequiredError("This flight's aircraft type could not be identified")
+        raise LicenseRequiredError(
+            "This flight's aircraft type could not be identified",
+            code="LICENSE_REQUIRED_AIRCRAFT_TYPE_UNRESOLVED",
+        )
     if not await license_service.user_has_aircraft_type_unlock(
         db, user_id, flight.aircraft_type_id
     ):
-        raise LicenseRequiredError("You have not unlocked this aircraft type")
+        raise LicenseRequiredError(
+            "You have not unlocked this aircraft type", code="LICENSE_REQUIRED_AIRCRAFT_TYPE"
+        )
 
     crew_count = await crew_service.get_crew_count(db, user_id, airport.id)
     busy_count = await crew_service.count_busy_rentals(db, user_id, airport.id)
     if busy_count >= crew_count:
         raise CrewUnavailableError(
-            "No free crew members at this airport -- all are currently assigned"
+            "No free crew members at this airport -- all are currently assigned",
+            code="CREW_UNAVAILABLE",
         )
 
     item_type = await db.get(ItemType, item_type_id)
     if item_type is None or not item_type.is_active:
-        raise NotFoundError("Item type not found")
+        raise NotFoundError("Item type not found", code="ITEM_TYPE_NOT_FOUND")
     if rental_fee_credits < item_type.base_cost_credits:
         raise RentalFeeTooLowError(
-            f"This item requires a minimum rental fee of {item_type.base_cost_credits} credits"
+            f"This item requires a minimum rental fee of {item_type.base_cost_credits} credits",
+            code="RENTAL_FEE_TOO_LOW",
+            params={"min_fee": item_type.base_cost_credits},
         )
 
     # Insert-first with a fresh random display_code each attempt: the unique
@@ -102,7 +112,9 @@ async def create_rental(
         except IntegrityError:
             rental = None
     if rental is None:
-        raise ConflictError("Could not generate a unique rental code, please retry")
+        raise ConflictError(
+            "Could not generate a unique rental code, please retry", code="RENTAL_CODE_COLLISION"
+        )
 
     # Raises InsufficientFundsError (propagated to the router) if the wallet
     # can't cover the fee; the flushed-but-uncommitted rental row is rolled
@@ -117,7 +129,7 @@ async def create_rental(
 async def get_rental_for_user(db: AsyncSession, user_id: int, rental_id: int) -> Rental:
     rental = await db.scalar(select(Rental).where(Rental.id == rental_id, Rental.user_id == user_id))
     if rental is None:
-        raise NotFoundError("Rental not found")
+        raise NotFoundError("Rental not found", code="RENTAL_NOT_FOUND")
     return rental
 
 
@@ -248,9 +260,11 @@ async def claim_rental(db: AsyncSession, user_id: int, rental_id: int) -> Rental
     explicit player action, gated on the flight having already resolved."""
     rental = await get_rental_for_user(db, user_id, rental_id)
     if rental.status == RentalStatus.CLAIMED:
-        raise ConflictError("Reward already claimed")
+        raise ConflictError("Reward already claimed", code="REWARD_ALREADY_CLAIMED")
     if rental.status != RentalStatus.RESOLVED:
-        raise RentalNotResolvedError("This rental's flight has not resolved yet")
+        raise RentalNotResolvedError(
+            "This rental's flight has not resolved yet", code="RENTAL_NOT_RESOLVED"
+        )
 
     await apply_ledger_entry(
         db, user_id, rental.settlement_credits, LedgerReason.SETTLEMENT, related_rental_id=rental.id

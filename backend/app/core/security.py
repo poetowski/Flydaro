@@ -41,10 +41,14 @@ def decode_access_token(token: str) -> int:
         payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
     except jwt.PyJWTError as exc:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"error": "Invalid or expired token", "code": "TOKEN_INVALID_OR_EXPIRED"},
         ) from exc
     if payload.get("type") != "access":
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"error": "Invalid token type", "code": "TOKEN_INVALID_TYPE"},
+        )
     return int(payload["sub"])
 
 
@@ -61,15 +65,24 @@ async def get_current_user(
     db: AsyncSession = Depends(get_db),
 ) -> User:
     if token is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"error": "Not authenticated", "code": "NOT_AUTHENTICATED"},
+        )
     user_id = decode_access_token(token)
     user = await db.get(User, user_id)
     if user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"error": "User not found", "code": "AUTH_USER_NOT_FOUND"},
+        )
     return user
 
 
 async def get_current_admin_user(current_user: User = Depends(get_current_user)) -> User:
     if not current_user.is_admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": "Admin access required", "code": "ADMIN_ACCESS_REQUIRED"},
+        )
     return current_user

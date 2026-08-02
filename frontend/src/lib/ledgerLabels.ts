@@ -1,9 +1,16 @@
-export const REASON_LABELS: Record<string, string> = {
-  signup_bonus: "Signup bonus",
-  rental_fee: "Rental fee",
-  settlement: "Settlement claimed",
-  license_purchase: "License purchased",
-  item_type_purchase: "Item purchased",
-  crew_hire: "Crew hired",
-  admin_adjustment: "Admin adjustment",
-};
+import { useLanguage } from "../i18n";
+
+const KNOWN_REASONS = new Set([
+  "signup_bonus",
+  "rental_fee",
+  "settlement",
+  "license_purchase",
+  "item_type_purchase",
+  "crew_hire",
+  "admin_adjustment",
+]);
+
+export function useReasonLabel() {
+  const { t } = useLanguage();
+  return (reason: string) => (KNOWN_REASONS.has(reason) ? t(`ledgerReasons.${reason}`) : reason);
+}

@@ -5,10 +5,14 @@ export const API_BASE_URL: string =
 
 export class ApiError extends Error {
   status: number;
+  code?: string;
+  params?: Record<string, string | number>;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, code?: string, params?: Record<string, string | number>) {
     super(message);
     this.status = status;
+    this.code = code;
+    this.params = params;
   }
 }
 
@@ -78,13 +82,24 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
   if (!response.ok) {
     let detail = response.statusText;
+    let code: string | undefined;
+    let params: Record<string, string | number> | undefined;
     try {
       const errBody = await response.json();
-      detail = errBody.detail ?? detail;
+      if (errBody?.detail && typeof errBody.detail === "object" && !Array.isArray(errBody.detail)) {
+        detail = errBody.detail.error ?? detail;
+        code = errBody.detail.code;
+        params = errBody.detail.params;
+      } else {
+        // Defensive fallback: FastAPI's own built-in validation errors (422s)
+        // still return `detail` as a string/list, not our {error, code, params}
+        // shape -- those fall through here untouched.
+        detail = errBody?.detail ?? detail;
+      }
     } catch {
       // response had no JSON body -- fall back to statusText
     }
-    throw new ApiError(response.status, detail);
+    throw new ApiError(response.status, detail, code, params);
   }
 
   if (response.status === 204) return undefined as T;

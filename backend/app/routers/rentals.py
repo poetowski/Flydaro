@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_adsb_client
+from app.core.error_detail import error_detail
 from app.core.exceptions import (
     CapacityClosedError,
     ConflictError,
@@ -77,25 +78,25 @@ async def create_rental(
         )
     except NotFoundError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error_detail(exc)) from exc
     except CapacityClosedError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail(exc)) from exc
     except LicenseRequiredError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=error_detail(exc)) from exc
     except CrewUnavailableError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail(exc)) from exc
     except InsufficientFundsError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_detail(exc)) from exc
     except RentalFeeTooLowError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_detail(exc)) from exc
     except ConflictError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail(exc)) from exc
     await db.commit()
     return (await _to_rental_out(db, [rental]))[0]
 
@@ -113,7 +114,8 @@ async def list_my_rentals(
             parsed_status = RentalStatus(status_filter)
         except ValueError as exc:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status filter"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"error": "Invalid status filter", "code": "INVALID_STATUS_FILTER"},
             ) from exc
     rentals = await rental_service.list_rentals_for_user(db, current_user.id, parsed_status)
     await _refresh_flights_for(db, client, rentals)
@@ -130,7 +132,7 @@ async def get_rental(
     try:
         rental = await rental_service.get_rental_for_user(db, current_user.id, rental_id)
     except NotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error_detail(exc)) from exc
     await _refresh_flights_for(db, client, [rental])
     return (await _to_rental_out(db, [rental]))[0]
 
@@ -144,8 +146,8 @@ async def claim_rental(
     try:
         rental = await rental_service.claim_rental(db, current_user.id, rental_id)
     except NotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error_detail(exc)) from exc
     except (RentalNotResolvedError, ConflictError) as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail(exc)) from exc
     await db.commit()
     return (await _to_rental_out(db, [rental]))[0]

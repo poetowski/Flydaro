@@ -83,9 +83,9 @@ async def user_has_aircraft_type_unlock(
 async def unlock_airport(db: AsyncSession, user_id: int, airport_id: int) -> Airport:
     airport = await db.get(Airport, airport_id)
     if airport is None:
-        raise NotFoundError("Airport not found")
+        raise NotFoundError("Airport not found", code="AIRPORT_NOT_FOUND")
     if airport.is_starter:
-        raise ConflictError("Airport is already unlocked for everyone")
+        raise ConflictError("Airport is already unlocked for everyone", code="AIRPORT_GLOBALLY_UNLOCKED")
 
     # Insert-first: the composite PK fails fast on a duplicate/racing
     # request, before any wallet debit happens -- the losing side of a race
@@ -95,7 +95,7 @@ async def unlock_airport(db: AsyncSession, user_id: int, airport_id: int) -> Air
             db.add(UserAirportUnlock(user_id=user_id, airport_id=airport_id))
             await db.flush()
     except IntegrityError as exc:
-        raise ConflictError("Airport already unlocked") from exc
+        raise ConflictError("Airport already unlocked", code="AIRPORT_ALREADY_UNLOCKED") from exc
 
     await apply_ledger_entry(
         db, user_id, -airport.unlock_cost_credits, LedgerReason.LICENSE_PURCHASE
@@ -113,16 +113,20 @@ async def unlock_airport(db: AsyncSession, user_id: int, airport_id: int) -> Air
 async def unlock_aircraft_family(db: AsyncSession, user_id: int, family_id: int) -> AircraftFamily:
     family = await db.get(AircraftFamily, family_id)
     if family is None:
-        raise NotFoundError("Aircraft family not found")
+        raise NotFoundError("Aircraft family not found", code="AIRCRAFT_FAMILY_NOT_FOUND")
     if family.is_starter:
-        raise ConflictError("Aircraft family is already unlocked for everyone")
+        raise ConflictError(
+            "Aircraft family is already unlocked for everyone", code="AIRCRAFT_FAMILY_GLOBALLY_UNLOCKED"
+        )
 
     try:
         async with db.begin_nested():
             db.add(UserAircraftFamilyUnlock(user_id=user_id, family_id=family_id))
             await db.flush()
     except IntegrityError as exc:
-        raise ConflictError("Aircraft family already unlocked") from exc
+        raise ConflictError(
+            "Aircraft family already unlocked", code="AIRCRAFT_FAMILY_ALREADY_UNLOCKED"
+        ) from exc
 
     await apply_ledger_entry(
         db, user_id, -family.unlock_cost_credits, LedgerReason.LICENSE_PURCHASE

@@ -42,7 +42,7 @@ async def _issue_token_pair(db: AsyncSession, user: User) -> tuple[str, str]:
 async def signup(db: AsyncSession, email: str, password: str, display_name: str) -> tuple[str, str]:
     existing = await db.scalar(select(User).where(User.email == email))
     if existing is not None:
-        raise ConflictError("An account with this email already exists")
+        raise ConflictError("An account with this email already exists", code="EMAIL_ALREADY_REGISTERED")
 
     user = User(email=email, password_hash=hash_password(password), display_name=display_name)
     db.add(user)
@@ -65,7 +65,7 @@ async def signup(db: AsyncSession, email: str, password: str, display_name: str)
 async def login(db: AsyncSession, email: str, password: str) -> tuple[str, str]:
     user = await db.scalar(select(User).where(User.email == email))
     if user is None or not verify_password(password, user.password_hash):
-        raise InvalidCredentialsError("Invalid email or password")
+        raise InvalidCredentialsError("Invalid email or password", code="INVALID_LOGIN_CREDENTIALS")
 
     user.last_login_at = datetime.now(timezone.utc)
     return await _issue_token_pair(db, user)
@@ -81,14 +81,14 @@ async def refresh(db: AsyncSession, raw_refresh_token: str) -> tuple[str, str]:
         or token_row.revoked_at is not None
         or token_row.expires_at < now
     ):
-        raise InvalidCredentialsError("Refresh token is invalid or expired")
+        raise InvalidCredentialsError("Refresh token is invalid or expired", code="REFRESH_TOKEN_INVALID")
 
     # Rotation: revoke the used token immediately so replay is detectable.
     token_row.revoked_at = now
 
     user = await db.get(User, token_row.user_id)
     if user is None:
-        raise InvalidCredentialsError("Refresh token is invalid or expired")
+        raise InvalidCredentialsError("Refresh token is invalid or expired", code="REFRESH_TOKEN_INVALID")
 
     access_token, new_raw_refresh_token = await _issue_token_pair(db, user)
 

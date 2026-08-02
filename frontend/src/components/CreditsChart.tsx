@@ -1,3 +1,6 @@
+import { dateLocale } from "../i18n";
+import type { Language } from "../i18n/types";
+
 export interface CreditsChartPoint {
   date: Date;
   balance: number;
@@ -5,6 +8,9 @@ export interface CreditsChartPoint {
 
 interface CreditsChartProps {
   points: CreditsChartPoint[];
+  language: Language;
+  emptyLabel: string;
+  ariaLabel: string;
 }
 
 const WIDTH = 640;
@@ -14,13 +20,13 @@ const PAD_RIGHT = 12;
 const PAD_TOP = 12;
 const PAD_BOTTOM = 24;
 
-function formatShortDate(date: Date): string {
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+function formatShortDate(date: Date, language: Language): string {
+  return date.toLocaleDateString(dateLocale(language), { month: "short", day: "numeric" });
 }
 
-export function CreditsChart({ points }: CreditsChartProps) {
+export function CreditsChart({ points, language, emptyLabel, ariaLabel }: CreditsChartProps) {
   if (points.length < 2) {
-    return <p className="muted">Not enough history yet -- come back after a few transactions.</p>;
+    return <p className="muted">{emptyLabel}</p>;
   }
 
   const balances = points.map((p) => p.balance);
@@ -52,12 +58,7 @@ export function CreditsChart({ points }: CreditsChartProps) {
   const midIndex = Math.floor((points.length - 1) / 2);
 
   return (
-    <svg
-      className="credits-chart"
-      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-      role="img"
-      aria-label="Wallet balance over time"
-    >
+    <svg className="credits-chart" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label={ariaLabel}>
       <line
         x1={PAD_LEFT}
         y1={PAD_TOP}
@@ -84,7 +85,7 @@ export function CreditsChart({ points }: CreditsChartProps) {
       </text>
 
       <text x={xFor(points[0].date)} y={HEIGHT - 4} fontSize={11} fill="var(--text-muted)">
-        {formatShortDate(points[0].date)}
+        {formatShortDate(points[0].date, language)}
       </text>
       <text
         x={xFor(points[midIndex].date)}
@@ -93,7 +94,7 @@ export function CreditsChart({ points }: CreditsChartProps) {
         fill="var(--text-muted)"
         textAnchor="middle"
       >
-        {formatShortDate(points[midIndex].date)}
+        {formatShortDate(points[midIndex].date, language)}
       </text>
       <text
         x={xFor(points[points.length - 1].date)}
@@ -102,7 +103,7 @@ export function CreditsChart({ points }: CreditsChartProps) {
         fill="var(--text-muted)"
         textAnchor="end"
       >
-        {formatShortDate(points[points.length - 1].date)}
+        {formatShortDate(points[points.length - 1].date, language)}
       </text>
     </svg>
   );

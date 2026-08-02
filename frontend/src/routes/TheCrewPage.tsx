@@ -4,11 +4,14 @@ import { listAirports, type Airport } from "../api/airports";
 import { ApiError } from "../api/client";
 import { getCrewOverview, hireCrew } from "../api/crew";
 import { Modal } from "../components/Modal";
+import { useLanguage } from "../i18n";
+import { translateApiError } from "../i18n/translateApiError";
 import { useToast } from "../lib/ToastContext";
 
 export function TheCrewPage() {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const [error, setError] = useState<string | null>(null);
   const [confirmingAirport, setConfirmingAirport] = useState<Airport | null>(null);
 
@@ -43,45 +46,41 @@ export function TheCrewPage() {
       setConfirmingAirport(null);
       queryClient.invalidateQueries({ queryKey: ["wallet"] });
       queryClient.invalidateQueries({ queryKey: ["crew"] });
-      showToast(`Crew hired at ${crew.icao4} -- ${crew.free_count} now free`);
+      showToast(t("crew.toastHired", { icao4: crew.icao4, free: crew.free_count }));
     },
-    onError: (err) => setError(err instanceof ApiError ? err.message : "Could not hire crew"),
+    onError: (err) =>
+      setError(err instanceof ApiError ? translateApiError(err, t) : t("crew.couldNotHireCrew")),
   });
 
   return (
     <div className="page">
-      <h1>Crew</h1>
-      <p>
-        Crew members handle the logistics at an airport -- one is tied up for the entire
-        duration of each rental originating there. Hire more to run rentals in parallel.
-      </p>
+      <h1>{t("crew.title")}</h1>
+      <p>{t("crew.intro")}</p>
       {error && <p className="form-error">{error}</p>}
-      {(airportsIsLoading || crewIsLoading) && <p>Loading crew...</p>}
+      {(airportsIsLoading || crewIsLoading) && <p>{t("crew.loadingCrew")}</p>}
       {airportsIsError && (
         <p className="form-error">
-          Could not load airports:{" "}
-          {airportsError instanceof ApiError ? airportsError.message : "unknown error"}
+          {t("crew.couldNotLoadAirports", { error: translateApiError(airportsError, t) })}
         </p>
       )}
       {crewIsError && (
         <p className="form-error">
-          Could not load crew:{" "}
-          {crewError instanceof ApiError ? crewError.message : "unknown error"}
+          {t("crew.couldNotLoadCrew", { error: translateApiError(crewError, t) })}
         </p>
       )}
 
       <section className="card stat-row">
         <div className="stat-card">
           <p className="stat-value">{idleCrew}</p>
-          <p className="stat-label">Idle Crew Members</p>
+          <p className="stat-label">{t("crew.idleCrewMembersLabel")}</p>
         </div>
         <div className="stat-card">
           <p className="stat-value">{busyCrew}</p>
-          <p className="stat-label">Busy Crew Members</p>
+          <p className="stat-label">{t("crew.busyCrewMembersLabel")}</p>
         </div>
         <div className="stat-card">
           <p className="stat-value">{totalCrew}</p>
-          <p className="stat-label">Total Crew Members</p>
+          <p className="stat-label">{t("crew.totalCrewMembersLabel")}</p>
         </div>
       </section>
 
@@ -96,19 +95,22 @@ export function TheCrewPage() {
                   {airport.country}
                   {airport.unlocked && crew && (
                     <div className="flight-meta">
-                      Crew: {crew.crew_count} total -- {crew.free_count} free /{" "}
-                      {crew.busy_count} assigned
+                      {t("crew.crewDetailLine", {
+                        total: crew.crew_count,
+                        free: crew.free_count,
+                        busy: crew.busy_count,
+                      })}
                     </div>
                   )}
                 </div>
                 {!airport.unlocked ? (
-                  <span className="badge">Unlock this airport first</span>
+                  <span className="badge">{t("crew.unlockAirportFirst")}</span>
                 ) : (
                   <button
                     onClick={() => setConfirmingAirport(airport)}
                     disabled={hireCrewMutation.isPending}
                   >
-                    Hire crew ({crew?.next_hire_cost ?? "..."} cr)
+                    {t("crew.hireCrewButton", { amount: crew?.next_hire_cost ?? "..." })}
                   </button>
                 )}
               </li>
@@ -118,20 +120,22 @@ export function TheCrewPage() {
       </section>
 
       {confirmingAirport && (
-        <Modal title="Confirm crew hire" onClose={() => setConfirmingAirport(null)}>
+        <Modal title={t("crew.confirmTitle")} onClose={() => setConfirmingAirport(null)}>
           <p>
-            Hire a new crew member at <strong>{confirmingAirport.name}</strong> (
-            {confirmingAirport.icao4}) for{" "}
-            <strong>{crewByAirportId.get(confirmingAirport.id)?.next_hire_cost ?? "..."} credits</strong>?
+            {t("crew.confirmBody", {
+              name: confirmingAirport.name,
+              icao4: confirmingAirport.icao4,
+              amount: crewByAirportId.get(confirmingAirport.id)?.next_hire_cost ?? "...",
+            })}
           </p>
           <div className="modal-row" style={{ justifyContent: "flex-end", gap: 8 }}>
-            <button onClick={() => setConfirmingAirport(null)}>Cancel</button>
+            <button onClick={() => setConfirmingAirport(null)}>{t("common.cancel")}</button>
             <button
               className="button"
               disabled={hireCrewMutation.isPending}
               onClick={() => hireCrewMutation.mutate(confirmingAirport.id)}
             >
-              {hireCrewMutation.isPending ? "Hiring..." : "Confirm"}
+              {hireCrewMutation.isPending ? t("crew.hiringButton") : t("common.confirm")}
             </button>
           </div>
         </Modal>

@@ -3,10 +3,13 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { listMyRentals } from "../api/rentals";
 import { getWallet } from "../api/wallet";
 import { useAuth } from "../auth/AuthContext";
+import { useLanguage } from "../i18n";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
 export function AppLayout() {
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const { t, tPlural } = useLanguage();
   const { data: wallet } = useQuery({
     queryKey: ["wallet"],
     queryFn: getWallet,
@@ -30,26 +33,29 @@ export function AppLayout() {
         <span className="brand">Flydaro</span>
         <nav>
           <NavLink to="/" end>
-            Dashboard
+            {t("nav.dashboard")}
           </NavLink>
-          <NavLink to="/wallet-ledger">Wallet Ledger</NavLink>
-          <NavLink to="/flights">Flight Board</NavLink>
-          <NavLink to="/rentals">Rental History</NavLink>
-          <NavLink to="/licenses">Licenses</NavLink>
-          <NavLink to="/the-crew">Crew</NavLink>
+          <NavLink to="/wallet-ledger">{t("nav.walletLedger")}</NavLink>
+          <NavLink to="/flights">{t("nav.flightBoard")}</NavLink>
+          <NavLink to="/rentals">{t("nav.rentalHistory")}</NavLink>
+          <NavLink to="/licenses">{t("nav.licenses")}</NavLink>
+          <NavLink to="/the-crew">{t("nav.crew")}</NavLink>
           <NavLink to="/board-of-fame" className="nav-right-group">
-            Board of Fame
+            {t("nav.boardOfFame")}
           </NavLink>
-          <NavLink to="/our-story">Our Story</NavLink>
+          <NavLink to="/our-story">{t("nav.ourStory")}</NavLink>
         </nav>
         <div className="header-right">
           {rewardsReadyCount > 0 && (
             <NavLink to="/rentals" className="badge-reward-ready">
-              {rewardsReadyCount} ready to claim
+              {tPlural("appLayout.readyToClaim", rewardsReadyCount)}
             </NavLink>
           )}
-          <span className="wallet-badge">{wallet ? `${wallet.balance_credits} cr` : "..."}</span>
-          <button onClick={handleLogout}>Log out</button>
+          <span className="wallet-badge">
+            {wallet ? `${wallet.balance_credits} ${t("common.creditsShort")}` : "..."}
+          </span>
+          <LanguageSwitcher />
+          <button onClick={handleLogout}>{t("nav.logOut")}</button>
         </div>
       </header>
       <main className="app-main">

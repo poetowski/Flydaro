@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.error_detail import error_detail
 from app.core.exceptions import ConflictError, InvalidCredentialsError
 from app.core.security import get_current_user
 from app.db.session import get_db
@@ -26,7 +27,7 @@ async def signup(body: SignupRequest, db: AsyncSession = Depends(get_db)) -> Tok
         )
     except ConflictError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=error_detail(exc)) from exc
     await db.commit()
     return TokenPair(access_token=access_token, refresh_token=refresh_token)
 
@@ -37,7 +38,7 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> Token
         access_token, refresh_token = await auth_service.login(db, body.email, body.password)
     except InvalidCredentialsError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=error_detail(exc)) from exc
     await db.commit()
     return TokenPair(access_token=access_token, refresh_token=refresh_token)
 
@@ -48,7 +49,7 @@ async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)) -> T
         access_token, refresh_token = await auth_service.refresh(db, body.refresh_token)
     except InvalidCredentialsError as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=error_detail(exc)) from exc
     await db.commit()
     return TokenPair(access_token=access_token, refresh_token=refresh_token)
 

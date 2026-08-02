@@ -1,8 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { ApiError } from "../api/client";
 import { getLeaderboard } from "../api/leaderboard";
+import { useLanguage } from "../i18n";
+import { translateApiError } from "../i18n/translateApiError";
 
 export function BoardOfFamePage() {
+  const { t } = useLanguage();
   const {
     data: entries,
     isLoading,
@@ -12,16 +14,16 @@ export function BoardOfFamePage() {
 
   return (
     <div className="page">
-      <h1>Board of Fame in the Sky</h1>
-      <p className="muted">The top 10 pilots by credits, ranked -- exact fortunes stay private.</p>
+      <h1>{t("boardOfFame.title")}</h1>
+      <p className="muted">{t("boardOfFame.subtitle")}</p>
 
       {isError && (
         <p className="form-error">
-          Could not load the board of fame: {error instanceof ApiError ? error.message : "unknown error"}
+          {t("boardOfFame.couldNotLoad", { error: translateApiError(error, t) })}
         </p>
       )}
-      {isLoading && <p>Loading leaderboard...</p>}
-      {!isLoading && !isError && entries?.length === 0 && <p>No players yet.</p>}
+      {isLoading && <p>{t("boardOfFame.loadingLeaderboard")}</p>}
+      {!isLoading && !isError && entries?.length === 0 && <p>{t("boardOfFame.noPlayers")}</p>}
 
       <ul className="leaderboard-list">
         {entries?.map((entry) => (

@@ -4,16 +4,11 @@ import { Link } from "react-router-dom";
 import { listAircraftFamilies } from "../api/aircraftFamilies";
 import { listAircraftTypes } from "../api/aircraftTypes";
 import { listAirports } from "../api/airports";
-import { ApiError } from "../api/client";
 import { getCrewOverview } from "../api/crew";
 import { getFlightBoard } from "../api/flights";
+import { useLanguage, dateLocale } from "../i18n";
+import { translateApiError } from "../i18n/translateApiError";
 import { familyBadgeLabel } from "../lib/familyLabel";
-
-const STATUS_LABELS: Record<string, string> = {
-  AIRBORNE_OPEN: "Just took off -- capacity open to rent",
-  AIRBORNE_LOCKED: "In flight -- capacity closed",
-  LANDING_SUSPECTED: "Landing...",
-};
 
 // Discovery for airports due a fresh check now runs in the background
 // after GET /flights/board returns (see backend/app/routers/flights.py),
@@ -26,6 +21,7 @@ const FOLLOW_UP_REFETCH_DELAY_MS = 4000;
 
 export function FlightBoardPage() {
   const queryClient = useQueryClient();
+  const { t, language } = useLanguage();
   const [airportId, setAirportId] = useState<number | "all">("all");
   const [aircraftFamilyId, setAircraftFamilyId] = useState<number | "all">("all");
   const [showOnlyIdleCrew, setShowOnlyIdleCrew] = useState(true);
@@ -102,30 +98,31 @@ export function FlightBoardPage() {
 
   return (
     <div className="page">
-      <h1>Flight Board</h1>
+      <h1>{t("flightBoard.title")}</h1>
 
       {airportsIsError && (
         <p className="form-error">
-          Could not load airports: {airportsError instanceof ApiError ? airportsError.message : "unknown error"}
+          {t("flightBoard.couldNotLoadAirports", { error: translateApiError(airportsError, t) })}
         </p>
       )}
       {aircraftFamiliesIsError && (
         <p className="form-error">
-          Could not load aircraft families:{" "}
-          {aircraftFamiliesError instanceof ApiError ? aircraftFamiliesError.message : "unknown error"}
+          {t("flightBoard.couldNotLoadAircraftFamilies", {
+            error: translateApiError(aircraftFamiliesError, t),
+          })}
         </p>
       )}
 
       <div className="board-filters">
         <label className="airport-filter">
-          Airport
+          {t("flightBoard.airportLabel")}
           <select
             value={airportId}
             onChange={(e) =>
               setAirportId(e.target.value === "all" ? "all" : Number(e.target.value))
             }
           >
-            <option value="all">All unlocked airports</option>
+            <option value="all">{t("flightBoard.allUnlockedAirports")}</option>
             {unlockedAirports.map((airport) => (
               <option key={airport.id} value={airport.id}>
                 {airport.name} ({airport.icao4})
@@ -135,14 +132,14 @@ export function FlightBoardPage() {
         </label>
 
         <label className="airport-filter">
-          Aircraft family
+          {t("flightBoard.aircraftFamilyLabel")}
           <select
             value={aircraftFamilyId}
             onChange={(e) =>
               setAircraftFamilyId(e.target.value === "all" ? "all" : Number(e.target.value))
             }
           >
-            <option value="all">All unlocked families</option>
+            <option value="all">{t("flightBoard.allUnlockedFamilies")}</option>
             {unlockedAircraftFamilies.map((family) => (
               <option key={family.id} value={family.id}>
                 {family.name}
@@ -158,7 +155,7 @@ export function FlightBoardPage() {
             onChange={(e) => setShowOnlyIdleCrew(e.target.checked)}
           />
           <span className="toggle-switch-track" />
-          Show only Airport with Idle Crew
+          {t("flightBoard.showOnlyIdleCrew")}
         </label>
 
         <button
@@ -169,26 +166,31 @@ export function FlightBoardPage() {
             scheduleFollowUpRefetch();
           }}
         >
-          {isFetching ? "Refreshing..." : "Refresh"}
+          {isFetching ? t("flightBoard.refreshing") : t("flightBoard.refresh")}
         </button>
       </div>
 
       <p className="muted">
-        Want more airports or planes? Visit <Link to="/licenses">Licenses</Link>.
+        {t("flightBoard.wantMorePrefix")}
+        <Link to="/licenses">{t("nav.licenses")}</Link>
+        {t("flightBoard.wantMoreSuffix")}
       </p>
       <p className="muted">
-        Live flight data via <a href="https://adsb.fi" target="_blank" rel="noreferrer">adsb.fi</a>.
+        {t("flightBoard.liveDataPrefix")}
+        <a href="https://adsb.fi" target="_blank" rel="noreferrer">
+          adsb.fi
+        </a>
+        {t("flightBoard.liveDataSuffix")}
       </p>
 
       {flightsIsError && (
         <p className="form-error">
-          Could not load the flight board:{" "}
-          {flightsError instanceof ApiError ? flightsError.message : "unknown error"}
+          {t("flightBoard.couldNotLoadBoard", { error: translateApiError(flightsError, t) })}
         </p>
       )}
-      {isLoading && <p>Loading flights...</p>}
+      {isLoading && <p>{t("flightBoard.loadingFlights")}</p>}
       {!isLoading && !flightsIsError && visibleFlights.length === 0 && (
-        <p>No aircraft currently airborne near your unlocked airports. Check back shortly.</p>
+        <p>{t("flightBoard.noFlights")}</p>
       )}
 
       <ul className="flight-list">
@@ -205,9 +207,7 @@ export function FlightBoardPage() {
             <li key={flight.id} className="flight-card">
               <div>
                 <strong>{flight.callsign ?? flight.icao24}</strong>
-                <span className="flight-status">
-                  {STATUS_LABELS[flight.status] ?? flight.status}
-                </span>
+                <span className="flight-status">{t(`flightStatus.${flight.status}`)}</span>
               </div>
               <div>
                 {airport && <span className="badge badge-airport">{airport.icao4}</span>}
@@ -218,17 +218,19 @@ export function FlightBoardPage() {
                 )}
               </div>
               <div className="flight-meta">
-                {aircraftType ? aircraftType.name : "Unknown aircraft type"}
+                {aircraftType ? aircraftType.name : t("flightBoard.unknownAircraftType")}
               </div>
               <div className="flight-meta">
-                First seen airborne: {new Date(flight.first_seen_at).toLocaleTimeString()}
+                {t("flightBoard.firstSeenAirborne", {
+                  time: new Date(flight.first_seen_at).toLocaleTimeString(dateLocale(language)),
+                })}
               </div>
               {canRent ? (
                 <Link className="button" to={`/flights/${flight.id}/rent`}>
-                  Rent capacity
+                  {t("flightBoard.rentCapacityLink")}
                 </Link>
               ) : (
-                <span className="muted">Capacity closed</span>
+                <span className="muted">{t("flightBoard.capacityClosed")}</span>
               )}
             </li>
           );

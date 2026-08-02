@@ -3,23 +3,22 @@ import { Link } from "react-router-dom";
 import { listAircraftFamilies } from "../api/aircraftFamilies";
 import { listAirports } from "../api/airports";
 import { getCurrentUser } from "../api/auth";
-import { ApiError } from "../api/client";
 import { getCrewOverview } from "../api/crew";
 import { getMyRank } from "../api/leaderboard";
 import { listMyRentals } from "../api/rentals";
 import { getWallet, getWalletLedger } from "../api/wallet";
 import { CreditsChart, type CreditsChartPoint } from "../components/CreditsChart";
-import { REASON_LABELS } from "../lib/ledgerLabels";
+import { useLanguage, dateLocale } from "../i18n";
+import { translateApiError } from "../i18n/translateApiError";
+import { useReasonLabel } from "../lib/ledgerLabels";
 import { familyBadgeLabel } from "../lib/familyLabel";
 
 const ACTIVE_STATUSES = new Set(["FLYING", "IN_PROGRESS", "RESOLVING"]);
 const RECENT_ACTIVITY_COUNT = 5;
 
-function queryErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof ApiError ? error.message : fallback;
-}
-
 export function DashboardPage() {
+  const { t, tPlural, language } = useLanguage();
+  const reasonLabel = useReasonLabel();
   const { data: wallet } = useQuery({ queryKey: ["wallet"], queryFn: getWallet });
   const {
     data: rentals,
@@ -81,7 +80,7 @@ export function DashboardPage() {
   const recentActivity = (ledger ?? []).slice(0, RECENT_ACTIVITY_COUNT);
 
   const memberSince = currentUser
-    ? new Date(currentUser.created_at).toLocaleDateString(undefined, {
+    ? new Date(currentUser.created_at).toLocaleDateString(dateLocale(language), {
         month: "long",
         year: "numeric",
       })
@@ -89,89 +88,101 @@ export function DashboardPage() {
 
   return (
     <div className="page">
-      <h1>Dashboard</h1>
+      <h1>{t("dashboard.title")}</h1>
       <p className="muted">
-        {currentUser ? `Welcome back, ${currentUser.display_name}` : "Welcome back"}
-        {memberSince ? ` -- member since ${memberSince}` : ""}
-        {myRank ? ` -- Ranked #${myRank.rank} of ${myRank.total_players} (${myRank.credit_bracket})` : ""}
+        {currentUser ? t("dashboard.welcomeBackNamed", { name: currentUser.display_name }) : t("dashboard.welcomeBack")}
+        {memberSince ? t("dashboard.memberSince", { date: memberSince }) : ""}
+        {myRank
+          ? t("dashboard.rankedSuffix", {
+              rank: myRank.rank,
+              total: myRank.total_players,
+              bracket: myRank.credit_bracket,
+            })
+          : ""}
       </p>
 
       <section className="card">
-        <h2>Wallet</h2>
-        <p className="big-number">{wallet ? `${wallet.balance_credits} credits` : "Loading..."}</p>
+        <h2>{t("dashboard.walletHeading")}</h2>
+        <p className="big-number">
+          {wallet ? t("common.creditsAmount", { amount: wallet.balance_credits }) : t("dashboard.walletLoading")}
+        </p>
       </section>
 
       <section className="card">
-        <h2>Credits Over Time</h2>
+        <h2>{t("dashboard.creditsOverTimeHeading")}</h2>
         {ledgerIsError ? (
           <p className="form-error">
-            Could not load your credit history: {queryErrorMessage(ledgerError, "unknown error")}
+            {t("dashboard.couldNotLoadCreditHistory", { error: translateApiError(ledgerError, t) })}
           </p>
         ) : (
-          <CreditsChart points={chartPoints} />
+          <CreditsChart
+            points={chartPoints}
+            language={language}
+            emptyLabel={t("charts.creditsChartEmpty")}
+            ariaLabel={t("charts.creditsChartLabel")}
+          />
         )}
       </section>
 
       <section className="card stat-row">
         <div className="stat-card">
           <p className="stat-value">{activeRentals.length}</p>
-          <p className="stat-label">Active Rentals</p>
+          <p className="stat-label">{t("dashboard.activeRentalsLabel")}</p>
         </div>
         <div className="stat-card">
           <p className="stat-value">{unclaimedTotal}</p>
-          <p className="stat-label">Unclaimed Rewards (credits)</p>
+          <p className="stat-label">{t("dashboard.unclaimedRewardsLabel")}</p>
         </div>
         <div className="stat-card">
           <p className="stat-value">{lifetimeClaimed}</p>
-          <p className="stat-label">Lifetime Claimed (credits)</p>
+          <p className="stat-label">{t("dashboard.lifetimeClaimedLabel")}</p>
         </div>
         <div className="stat-card">
           <p className="stat-value">{idleCrew}</p>
-          <p className="stat-label">Idle Crew</p>
+          <p className="stat-label">{t("dashboard.idleCrewLabel")}</p>
         </div>
         <div className="stat-card">
           <p className="stat-value">
             {airportsUnlockedCount}/{airports?.length ?? "-"}
           </p>
-          <p className="stat-label">Airports Unlocked</p>
+          <p className="stat-label">{t("dashboard.airportsUnlockedLabel")}</p>
         </div>
         <div className="stat-card">
           <p className="stat-value">
             {familiesUnlockedCount}/{aircraftFamilies?.length ?? "-"}
           </p>
-          <p className="stat-label">Aircraft Families Unlocked</p>
+          <p className="stat-label">{t("dashboard.familiesUnlockedLabel")}</p>
         </div>
       </section>
       {(crewIsError || airportsIsError || aircraftFamiliesIsError) && (
         <p className="form-error">
-          Some stats could not load:{" "}
-          {queryErrorMessage(crewError ?? airportsError ?? aircraftFamiliesError, "unknown error")}
+          {t("dashboard.someStatsCouldNotLoad", {
+            error: translateApiError(crewError ?? airportsError ?? aircraftFamiliesError, t),
+          })}
         </p>
       )}
 
       {unclaimedRentals.length > 0 && (
         <section className="card card-highlight">
-          <p>
-            You have {unclaimedRentals.length} unclaimed reward{unclaimedRentals.length === 1 ? "" : "s"}{" "}
-            worth {unclaimedTotal} credits waiting.
-          </p>
+          <p>{tPlural("dashboard.unclaimedRewards", unclaimedRentals.length, { total: unclaimedTotal })}</p>
           <Link className="button" to="/rentals">
-            Go claim them
+            {t("dashboard.goClaimThem")}
           </Link>
         </section>
       )}
 
       <section className="card">
-        <h2>Active rentals ({activeRentals.length})</h2>
+        <h2>{t("dashboard.activeRentalsHeading", { count: activeRentals.length })}</h2>
         {rentalsIsError && (
           <p className="form-error">
-            Could not load rentals: {queryErrorMessage(rentalsError, "unknown error")}
+            {t("dashboard.couldNotLoadRentals", { error: translateApiError(rentalsError, t) })}
           </p>
         )}
         {activeRentals.length === 0 ? (
           <p>
-            No active rentals right now. Head to the <Link to="/flights">flight board</Link> to
-            rent some capacity.
+            {t("dashboard.noActiveRentalsPre")}
+            <Link to="/flights">{t("nav.flightBoard")}</Link>
+            {t("dashboard.noActiveRentalsPost")}
           </p>
         ) : (
           <ul className="rental-list">
@@ -180,7 +191,7 @@ export function DashboardPage() {
                 <div>
                   <strong>{rental.display_code}</strong>
                   <span className={`rental-status rental-status-${rental.status.toLowerCase()}`}>
-                    {rental.status}
+                    {t(`rentalStatusBadge.${rental.status}`)}
                   </span>
                 </div>
                 <div>
@@ -193,54 +204,56 @@ export function DashboardPage() {
                     </span>
                   )}
                 </div>
-                <div>Rental fee: {rental.rental_fee_credits} credits</div>
+                <div>{t("dashboard.rentalFeeLine", { amount: rental.rental_fee_credits })}</div>
               </li>
             ))}
           </ul>
         )}
-        <Link to="/rentals">View all rentals</Link>
+        <Link to="/rentals">{t("dashboard.viewAllRentals")}</Link>
       </section>
 
       <section className="card">
-        <h2>Recent activity</h2>
+        <h2>{t("dashboard.recentActivityHeading")}</h2>
         {ledgerIsError && (
           <p className="form-error">
-            Could not load activity: {queryErrorMessage(ledgerError, "unknown error")}
+            {t("dashboard.couldNotLoadActivity", { error: translateApiError(ledgerError, t) })}
           </p>
         )}
-        {recentActivity.length === 0 && !ledgerIsError && <p>No activity yet.</p>}
+        {recentActivity.length === 0 && !ledgerIsError && <p>{t("dashboard.noActivityYet")}</p>}
         <ul className="ledger-list">
           {recentActivity.map((entry) => (
             <li key={entry.id} className="ledger-entry">
               <div>
-                <strong>{REASON_LABELS[entry.reason] ?? entry.reason}</strong>
+                <strong>{reasonLabel(entry.reason)}</strong>
                 {entry.related_rental_code && (
                   <span className="flight-meta"> -- {entry.related_rental_code}</span>
                 )}
               </div>
-              <div className="flight-meta">{new Date(entry.created_at).toLocaleString()}</div>
+              <div className="flight-meta">
+                {new Date(entry.created_at).toLocaleString(dateLocale(language))}
+              </div>
               <div className={entry.delta_credits >= 0 ? "ledger-amount-positive" : "ledger-amount-negative"}>
                 {entry.delta_credits >= 0 ? "+" : ""}
-                {entry.delta_credits} credits
+                {t("common.creditsAmount", { amount: entry.delta_credits })}
               </div>
             </li>
           ))}
         </ul>
-        <Link to="/wallet-ledger">View full ledger</Link>
+        <Link to="/wallet-ledger">{t("dashboard.viewFullLedger")}</Link>
       </section>
 
       <section className="card stat-row">
         <Link className="button" to="/flights">
-          Rent Capacity
+          {t("dashboard.rentCapacity")}
         </Link>
         <Link className="button" to="/the-crew">
-          Hire Crew
+          {t("dashboard.hireCrew")}
         </Link>
         <Link className="button" to="/licenses">
-          Unlock Licenses
+          {t("dashboard.unlockLicenses")}
         </Link>
         <Link className="button" to="/board-of-fame">
-          Board of Fame
+          {t("nav.boardOfFame")}
         </Link>
       </section>
     </div>

@@ -80,7 +80,8 @@ async def get_flight_board(
             stmt = stmt.where(TrackedFlight.status == TrackedFlightStatus(status_filter))
         except ValueError as exc:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status filter"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"error": "Invalid status filter", "code": "INVALID_STATUS_FILTER"},
             ) from exc
     else:
         stmt = stmt.where(TrackedFlight.status.in_(OPEN_BOARD_STATUSES))
@@ -107,7 +108,10 @@ async def get_flight(
 ) -> TrackedFlight:
     flight = await db.get(TrackedFlight, flight_id)
     if flight is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Flight not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "Flight not found", "code": "FLIGHT_NOT_FOUND"},
+        )
     return flight
 
 

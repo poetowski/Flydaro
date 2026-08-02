@@ -33,7 +33,7 @@ async def apply_ledger_entry(
     wallet = await get_or_create_wallet(db, user_id)
     new_balance = wallet.balance_credits + delta_credits
     if new_balance < 0:
-        raise InsufficientFundsError("Insufficient balance for this operation")
+        raise InsufficientFundsError("Insufficient balance for this operation", code="INSUFFICIENT_FUNDS")
 
     wallet.balance_credits = new_balance
     db.add(

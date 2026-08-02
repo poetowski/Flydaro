@@ -6,6 +6,9 @@ import { listItemTypes } from "../api/itemTypes";
 import { ApiError } from "../api/client";
 import { getFlight } from "../api/flights";
 import { Modal } from "../components/Modal";
+import { useLanguage } from "../i18n";
+import { translateApiError } from "../i18n/translateApiError";
+import { itemLabel } from "../lib/itemLabels";
 import { useToast } from "../lib/ToastContext";
 
 const RENTAL_FEE_MARKS = [100, 250, 500, 1000];
@@ -16,6 +19,7 @@ export function RentalPlacementPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
+  const { t, language } = useLanguage();
 
   const {
     data: flight,
@@ -43,11 +47,11 @@ export function RentalPlacementPage() {
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (itemTypeId === null) {
-      setError("Pick an item type first");
+      setError(t("rentalPlacement.pickItemFirst"));
       return;
     }
     if (selectedItem && rentalFee < selectedItem.base_cost_credits) {
-      setError(`This item requires a minimum rental fee of ${selectedItem.base_cost_credits} credits`);
+      setError(t("rentalPlacement.minFeeError", { amount: selectedItem.base_cost_credits }));
       return;
     }
     setError(null);
@@ -61,11 +65,11 @@ export function RentalPlacementPage() {
       await createRental(numericFlightId, itemTypeId, rentalFee);
       await queryClient.invalidateQueries({ queryKey: ["wallet"] });
       await queryClient.invalidateQueries({ queryKey: ["rentals", "mine"] });
-      showToast("Capacity rented!");
+      showToast(t("rentalPlacement.toastRented"));
       navigate("/rentals");
     } catch (err) {
       setConfirming(false);
-      setError(err instanceof ApiError ? err.message : "Could not rent capacity");
+      setError(err instanceof ApiError ? translateApiError(err, t) : t("rentalPlacement.couldNotRent"));
     } finally {
       setSubmitting(false);
     }
@@ -74,59 +78,65 @@ export function RentalPlacementPage() {
   if (flightIsError) {
     return (
       <div className="page">
-        <h1>Could not load this flight</h1>
-        <p className="form-error">
-          {flightError instanceof ApiError ? flightError.message : "unknown error"}
-        </p>
+        <h1>{t("rentalPlacement.couldNotLoadFlightTitle")}</h1>
+        <p className="form-error">{translateApiError(flightError, t)}</p>
       </div>
     );
   }
 
-  if (flightIsLoading || !flight) return <p className="page">Loading flight...</p>;
+  if (flightIsLoading || !flight) return <p className="page">{t("rentalPlacement.loadingFlight")}</p>;
 
   if (!flight.capacity_open) {
     return (
       <div className="page">
-        <h1>Capacity closed</h1>
-        <p>Capacity on {flight.callsign ?? flight.icao24} is no longer available to rent.</p>
+        <h1>{t("rentalPlacement.capacityClosedTitle")}</h1>
+        <p>
+          {t("rentalPlacement.capacityClosedBody", { callsign: flight.callsign ?? flight.icao24 })}
+        </p>
       </div>
     );
   }
 
   return (
     <div className="page">
-      <h1>Rent capacity on {flight.callsign ?? flight.icao24}</h1>
+      <h1>{t("rentalPlacement.rentCapacityOnTitle", { callsign: flight.callsign ?? flight.icao24 })}</h1>
       <form className="rental-form" onSubmit={handleSubmit}>
         {error && <p className="form-error">{error}</p>}
 
         <fieldset>
-          <legend>Item type</legend>
-          {itemTypes?.map((item) => (
-            <label key={item.id} className="item-option">
-              <input
-                type="radio"
-                name="itemType"
-                value={item.id}
-                checked={itemTypeId === item.id}
-                onChange={() => {
-                  setItemTypeId(item.id);
-                  const requiredIndex = RENTAL_FEE_MARKS.findIndex(
-                    (mark) => mark >= item.base_cost_credits,
-                  );
-                  setRentalFeeIndex((prev) => Math.max(prev, requiredIndex));
-                }}
-              />
-              <span>
-                <strong>{item.name}</strong> ({item.category}, {item.settlement_multiplier}x) --{" "}
-                {item.base_cost_credits > 0 ? `min ${item.base_cost_credits} credits` : "no minimum"} --{" "}
-                {item.flavor_text}
-              </span>
-            </label>
-          ))}
+          <legend>{t("rentalPlacement.itemTypeLegend")}</legend>
+          {itemTypes?.map((item) => {
+            const label = itemLabel(item.code, language, { name: item.name, flavorText: item.flavor_text });
+            return (
+              <label key={item.id} className="item-option">
+                <input
+                  type="radio"
+                  name="itemType"
+                  value={item.id}
+                  checked={itemTypeId === item.id}
+                  onChange={() => {
+                    setItemTypeId(item.id);
+                    const requiredIndex = RENTAL_FEE_MARKS.findIndex(
+                      (mark) => mark >= item.base_cost_credits,
+                    );
+                    setRentalFeeIndex((prev) => Math.max(prev, requiredIndex));
+                  }}
+                />
+                <span>
+                  <strong>{label.name}</strong> ({t(`itemCategory.${item.category}`)},{" "}
+                  {item.settlement_multiplier}x) --{" "}
+                  {item.base_cost_credits > 0
+                    ? t("rentalPlacement.minFee", { amount: item.base_cost_credits })
+                    : t("rentalPlacement.noMinimum")}{" "}
+                  -- {label.flavorText}
+                </span>
+              </label>
+            );
+          })}
         </fieldset>
 
         <label>
-          Rental fee: <strong>{rentalFee} credits</strong>
+          {t("rentalPlacement.rentalFeeLabel")} <strong>{t("common.creditsAmount", { amount: rentalFee })}</strong>
           <input
             type="range"
             min={minFeeIndex}
@@ -143,21 +153,26 @@ export function RentalPlacementPage() {
         </label>
 
         <button type="submit" disabled={submitting}>
-          {submitting ? "Renting capacity..." : "Rent capacity"}
+          {submitting ? t("rentalPlacement.rentingButton") : t("rentalPlacement.rentButton")}
         </button>
       </form>
 
       {confirming && selectedItem && (
-        <Modal title="Confirm rental" onClose={() => setConfirming(false)}>
+        <Modal title={t("rentalPlacement.confirmTitle")} onClose={() => setConfirming(false)}>
           <p>
-            Rent capacity on <strong>{flight.callsign ?? flight.icao24}</strong> for{" "}
-            <strong>{selectedItem.name}</strong> at a fee of{" "}
-            <strong>{rentalFee} credits</strong>?
+            {t("rentalPlacement.confirmBody", {
+              callsign: flight.callsign ?? flight.icao24,
+              item: itemLabel(selectedItem.code, language, {
+                name: selectedItem.name,
+                flavorText: selectedItem.flavor_text,
+              }).name,
+              amount: rentalFee,
+            })}
           </p>
           <div className="modal-row" style={{ justifyContent: "flex-end", gap: 8 }}>
-            <button onClick={() => setConfirming(false)}>Cancel</button>
+            <button onClick={() => setConfirming(false)}>{t("common.cancel")}</button>
             <button className="button" disabled={submitting} onClick={confirmAndSubmit}>
-              {submitting ? "Renting..." : "Confirm"}
+              {submitting ? t("rentalPlacement.confirmingButton") : t("common.confirm")}
             </button>
           </div>
         </Modal>

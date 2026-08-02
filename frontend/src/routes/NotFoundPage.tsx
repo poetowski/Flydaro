@@ -1,11 +1,16 @@
 import { Link } from "react-router-dom";
+import { LanguageSwitcher } from "../components/LanguageSwitcher";
+import { useLanguage } from "../i18n";
 
 export function NotFoundPage() {
+  const { t } = useLanguage();
   return (
     <div className="page">
-      <h1>Page not found</h1>
+      <LanguageSwitcher />
+      <h1>{t("notFound.title")}</h1>
       <p>
-        That page doesn't exist. <Link to="/">Back to Dashboard</Link>
+        {t("notFound.bodyPre")}
+        <Link to="/">{t("notFound.backToDashboard")}</Link>
       </p>
     </div>
   );

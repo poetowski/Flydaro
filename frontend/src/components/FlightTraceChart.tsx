@@ -1,3 +1,6 @@
+import { dateLocale } from "../i18n";
+import type { Language } from "../i18n/types";
+
 export interface FlightTracePoint {
   date: Date;
   altitude: number;
@@ -5,6 +8,9 @@ export interface FlightTracePoint {
 
 interface FlightTraceChartProps {
   points: FlightTracePoint[];
+  language: Language;
+  emptyLabel: string;
+  ariaLabel: string;
 }
 
 const WIDTH = 640;
@@ -14,13 +20,13 @@ const PAD_RIGHT = 12;
 const PAD_TOP = 12;
 const PAD_BOTTOM = 24;
 
-function formatTime(date: Date): string {
-  return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+function formatTime(date: Date, language: Language): string {
+  return date.toLocaleTimeString(dateLocale(language), { hour: "2-digit", minute: "2-digit" });
 }
 
-export function FlightTraceChart({ points }: FlightTraceChartProps) {
+export function FlightTraceChart({ points, language, emptyLabel, ariaLabel }: FlightTraceChartProps) {
   if (points.length < 2) {
-    return <p className="muted">Not enough position data yet to trace this flight.</p>;
+    return <p className="muted">{emptyLabel}</p>;
   }
 
   const altitudes = points.map((p) => p.altitude);
@@ -49,12 +55,7 @@ export function FlightTraceChart({ points }: FlightTraceChartProps) {
   const midIndex = Math.floor((points.length - 1) / 2);
 
   return (
-    <svg
-      className="credits-chart"
-      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-      role="img"
-      aria-label="Flight altitude over time"
-    >
+    <svg className="credits-chart" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label={ariaLabel}>
       <line
         x1={PAD_LEFT}
         y1={PAD_TOP}
@@ -81,7 +82,7 @@ export function FlightTraceChart({ points }: FlightTraceChartProps) {
       </text>
 
       <text x={xFor(points[0].date)} y={HEIGHT - 4} fontSize={11} fill="var(--text-muted)">
-        {formatTime(points[0].date)}
+        {formatTime(points[0].date, language)}
       </text>
       <text
         x={xFor(points[midIndex].date)}
@@ -90,7 +91,7 @@ export function FlightTraceChart({ points }: FlightTraceChartProps) {
         fill="var(--text-muted)"
         textAnchor="middle"
       >
-        {formatTime(points[midIndex].date)}
+        {formatTime(points[midIndex].date, language)}
       </text>
       <text
         x={xFor(points[points.length - 1].date)}
@@ -99,7 +100,7 @@ export function FlightTraceChart({ points }: FlightTraceChartProps) {
         fill="var(--text-muted)"
         textAnchor="end"
       >
-        {formatTime(points[points.length - 1].date)}
+        {formatTime(points[points.length - 1].date, language)}
       </text>
     </svg>
   );
