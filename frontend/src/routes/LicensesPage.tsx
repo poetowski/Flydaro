@@ -7,6 +7,7 @@ import { unlockAircraftFamily, unlockAirport } from "../api/licenses";
 import { Modal } from "../components/Modal";
 import { useLanguage } from "../i18n";
 import { translateApiError } from "../i18n/translateApiError";
+import { PAGE_ICONS } from "../lib/pageIcons";
 import { useToast } from "../lib/ToastContext";
 
 export function LicensesPage() {
@@ -70,7 +71,9 @@ export function LicensesPage() {
 
   return (
     <div className="page">
-      <h1>{t("licenses.title")}</h1>
+      <h1>
+        {PAGE_ICONS["/licenses"]} {t("licenses.title")}
+      </h1>
       {error && <p className="form-error">{error}</p>}
 
       <section className="card">

@@ -6,6 +6,7 @@ import { getCrewOverview, hireCrew } from "../api/crew";
 import { Modal } from "../components/Modal";
 import { useLanguage } from "../i18n";
 import { translateApiError } from "../i18n/translateApiError";
+import { PAGE_ICONS } from "../lib/pageIcons";
 import { useToast } from "../lib/ToastContext";
 
 export function TheCrewPage() {
@@ -54,7 +55,9 @@ export function TheCrewPage() {
 
   return (
     <div className="page">
-      <h1>{t("crew.title")}</h1>
+      <h1>
+        {PAGE_ICONS["/the-crew"]} {t("crew.title")}
+      </h1>
       <p>{t("crew.intro")}</p>
       {error && <p className="form-error">{error}</p>}
       {(airportsIsLoading || crewIsLoading) && <p>{t("crew.loadingCrew")}</p>}

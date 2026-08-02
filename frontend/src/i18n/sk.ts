@@ -68,6 +68,7 @@ export const sk: Dict = {
     nextGoalFamily: "Odomkni {{name}} -- {{balance}} / {{cost}} kreditov",
     nextGoalAllUnlocked: "Máš odomknuté všetko -- výborná práca!",
     achievementsHeading: "Úspechy",
+    achievementsCount: "({{earned}}/{{total}})",
     achievementUnlockedToast: "Úspech odomknutý: {{title}}",
   },
   achievements: {

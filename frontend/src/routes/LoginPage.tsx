@@ -33,7 +33,7 @@ export function LoginPage() {
     <div className="auth-page">
       <LanguageSwitcher />
       <form className="auth-form" onSubmit={handleSubmit}>
-        <h1>Flydaro</h1>
+        <h1>✈️ Flydaro</h1>
         <p className="subtitle">{t("login.subtitle")}</p>
         {error && <p className="form-error">{error}</p>}
         <label>

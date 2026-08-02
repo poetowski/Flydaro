@@ -55,7 +55,7 @@ export function FlightTraceChart({ points, language, emptyLabel, ariaLabel }: Fl
   const midIndex = Math.floor((points.length - 1) / 2);
 
   return (
-    <svg className="credits-chart" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label={ariaLabel}>
+    <svg className="flight-trace-chart" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label={ariaLabel}>
       <line
         x1={PAD_LEFT}
         y1={PAD_TOP}

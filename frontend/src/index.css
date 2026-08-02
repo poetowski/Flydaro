@@ -10,6 +10,11 @@
   --danger: #c0392b;
   --warning: #b45309;
   --warning-contrast: #ffffff;
+  /* Pulled from the existing favicon mark's cyan, not invented -- a
+     second brand accent for the dashboard hero band and focus rings. */
+  --sky: #2f8fff;
+  --sky-contrast: #ffffff;
+  --shadow-sm: 0 1px 2px rgba(20, 15, 40, 0.06), 0 2px 8px rgba(20, 15, 40, 0.06);
 
   color-scheme: light dark;
   font: 16px/1.5 system-ui, "Segoe UI", Roboto, sans-serif;
@@ -26,8 +31,23 @@
     --border: #2e303a;
     --accent: #a684ff;
     --accent-contrast: #14151a;
+    --success: #34c281;
+    --danger: #e0665a;
     --warning: #fbbf24;
     --warning-contrast: #14151a;
+    --sky: #5ab0ff;
+    --sky-contrast: #0b1220;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
   }
 }
 
@@ -145,13 +165,30 @@ select {
   border-radius: 12px;
   padding: 16px 20px;
   margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
 }
 
 .card-highlight {
   border-left: 4px solid var(--accent);
 }
 
-.credits-chart {
+.dashboard-hero {
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent) 18%, var(--bg)),
+    color-mix(in srgb, var(--sky) 18%, var(--bg))
+  );
+}
+
+.dashboard-hero p {
+  margin: 0;
+}
+
+.credits-chart,
+.flight-trace-chart {
   width: 100%;
   height: auto;
   display: block;
@@ -174,6 +211,7 @@ select {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 10px 14px;
+  box-shadow: var(--shadow-sm);
 }
 
 .stat-value {
@@ -198,6 +236,25 @@ button,
   font-weight: 600;
   cursor: pointer;
   text-decoration: none;
+  transition: filter 0.15s, transform 0.1s;
+}
+
+button:hover:not(:disabled),
+.button:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+button:active:not(:disabled),
+.button:active {
+  filter: brightness(0.96);
+  transform: translateY(0);
+}
+
+button:focus-visible,
+.button:focus-visible {
+  outline: 2px solid var(--sky);
+  outline-offset: 2px;
 }
 
 button:disabled {
@@ -294,6 +351,17 @@ button:disabled {
   flex-direction: column;
   gap: 6px;
   align-items: flex-start;
+  box-shadow: var(--shadow-sm);
+}
+
+.rental-card-clickable {
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.rental-card-clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(20, 15, 40, 0.12);
 }
 
 .flight-status {
@@ -520,6 +588,7 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  box-shadow: var(--shadow-sm);
 }
 
 .ledger-amount-positive {
@@ -549,6 +618,22 @@ button:disabled {
   border: 1px solid var(--border);
   background: var(--card-bg);
   border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.leaderboard-entry-gold {
+  border-left: 4px solid #d4af37;
+  background: color-mix(in srgb, #d4af37 10%, var(--card-bg));
+}
+
+.leaderboard-entry-silver {
+  border-left: 4px solid #a8a9ad;
+  background: color-mix(in srgb, #a8a9ad 10%, var(--card-bg));
+}
+
+.leaderboard-entry-bronze {
+  border-left: 4px solid #c17a3f;
+  background: color-mix(in srgb, #c17a3f 10%, var(--card-bg));
 }
 
 .leaderboard-rank {
@@ -573,6 +658,17 @@ button:disabled {
   z-index: 100;
 }
 
+@keyframes modal-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .modal-panel {
   width: 100%;
   max-width: 480px;
@@ -582,6 +678,8 @@ button:disabled {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 20px;
+  box-shadow: 0 8px 30px rgba(20, 15, 40, 0.2);
+  animation: modal-fade-in 0.15s ease-out;
 }
 
 .modal-header {
@@ -662,6 +760,21 @@ button:disabled {
   gap: 10px;
 }
 
+@keyframes achievement-pop {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  40% {
+    transform: scale(1.08);
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 25%, transparent);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
 .achievement-badge {
   display: flex;
   align-items: center;
@@ -671,6 +784,11 @@ button:disabled {
   border-radius: 10px;
   border: 1px solid var(--border);
   cursor: default;
+  box-shadow: var(--shadow-sm);
+}
+
+.achievement-badge-pop {
+  animation: achievement-pop 0.5s ease-out;
 }
 
 .achievement-badge-icon {
@@ -692,6 +810,17 @@ button:disabled {
   opacity: 0.45;
 }
 
+@keyframes toast-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .toast {
   background: var(--card-bg);
   border: 1px solid var(--success);
@@ -700,4 +829,5 @@ button:disabled {
   padding: 10px 16px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   font-weight: 600;
+  animation: toast-slide-in 0.2s ease-out;
 }

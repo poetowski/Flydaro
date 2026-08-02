@@ -3,6 +3,7 @@ import { getWalletLedger } from "../api/wallet";
 import { useLanguage, dateLocale } from "../i18n";
 import { translateApiError } from "../i18n/translateApiError";
 import { useReasonLabel } from "../lib/ledgerLabels";
+import { PAGE_ICONS } from "../lib/pageIcons";
 
 export function WalletLedgerPage() {
   const { t, language } = useLanguage();
@@ -16,7 +17,9 @@ export function WalletLedgerPage() {
 
   return (
     <div className="page">
-      <h1>{t("walletLedger.title")}</h1>
+      <h1>
+        {PAGE_ICONS["/wallet-ledger"]} {t("walletLedger.title")}
+      </h1>
       <p className="muted">{t("walletLedger.subtitle")}</p>
 
       {isError && (

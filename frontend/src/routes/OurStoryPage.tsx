@@ -1,10 +1,13 @@
 import { useLanguage } from "../i18n";
+import { PAGE_ICONS } from "../lib/pageIcons";
 
 export function OurStoryPage() {
   const { t } = useLanguage();
   return (
     <div className="page">
-      <h1>{t("ourStory.title")}</h1>
+      <h1>
+        {PAGE_ICONS["/our-story"]} {t("ourStory.title")}
+      </h1>
       <p className="muted">{t("ourStory.intro")}</p>
 
       <section className="card">

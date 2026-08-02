@@ -12,6 +12,8 @@ import { useLanguage, dateLocale } from "../i18n";
 import { translateApiError } from "../i18n/translateApiError";
 import { familyBadgeLabel } from "../lib/familyLabel";
 import { itemLabel } from "../lib/itemLabels";
+import { PAGE_ICONS } from "../lib/pageIcons";
+import { RENTAL_STATUS_ICONS } from "../lib/statusIcons";
 import { useToast } from "../lib/ToastContext";
 
 function RentalDetailModal({ rental, onClose }: { rental: Rental; onClose: () => void }) {
@@ -49,7 +51,9 @@ function RentalDetailModal({ rental, onClose }: { rental: Rental; onClose: () =>
     <Modal title={rental.display_code} onClose={onClose}>
       <div className="modal-row">
         <span className="modal-row-label">{t("rentalHistory.statusLabel")}</span>
-        <span>{t(`rentalStatus.${rental.status}`)}</span>
+        <span>
+          {RENTAL_STATUS_ICONS[rental.status]} {t(`rentalStatus.${rental.status}`)}
+        </span>
       </div>
       <div className="modal-row">
         <span className="modal-row-label">{t("rentalHistory.itemLabel")}</span>
@@ -148,7 +152,9 @@ export function RentalHistoryPage() {
 
   return (
     <div className="page">
-      <h1>{t("rentalHistory.title")}</h1>
+      <h1>
+        {PAGE_ICONS["/rentals"]} {t("rentalHistory.title")}
+      </h1>
       {isLoading && <p>{t("rentalHistory.loadingRentals")}</p>}
       {!isLoading && rentals?.length === 0 && <p>{t("rentalHistory.noRentals")}</p>}
 
@@ -156,14 +162,13 @@ export function RentalHistoryPage() {
         {rentals?.map((rental) => (
           <li
             key={rental.id}
-            className="rental-card"
+            className="rental-card rental-card-clickable"
             onClick={() => setSelectedRental(rental)}
-            style={{ cursor: "pointer" }}
           >
             <div>
               <strong>{rental.display_code}</strong>
               <span className={`rental-status rental-status-${rental.status.toLowerCase()}`}>
-                {t(`rentalStatusBadge.${rental.status}`)}
+                {RENTAL_STATUS_ICONS[rental.status]} {t(`rentalStatusBadge.${rental.status}`)}
               </span>
             </div>
             <div>

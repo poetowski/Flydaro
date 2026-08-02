@@ -9,6 +9,8 @@ import { getFlightBoard } from "../api/flights";
 import { useLanguage, dateLocale } from "../i18n";
 import { translateApiError } from "../i18n/translateApiError";
 import { familyBadgeLabel } from "../lib/familyLabel";
+import { PAGE_ICONS } from "../lib/pageIcons";
+import { FLIGHT_STATUS_ICONS } from "../lib/statusIcons";
 
 // Discovery for airports due a fresh check now runs in the background
 // after GET /flights/board returns (see backend/app/routers/flights.py),
@@ -98,7 +100,9 @@ export function FlightBoardPage() {
 
   return (
     <div className="page">
-      <h1>{t("flightBoard.title")}</h1>
+      <h1>
+        {PAGE_ICONS["/flights"]} {t("flightBoard.title")}
+      </h1>
 
       {airportsIsError && (
         <p className="form-error">
@@ -207,7 +211,9 @@ export function FlightBoardPage() {
             <li key={flight.id} className="flight-card">
               <div>
                 <strong>{flight.callsign ?? flight.icao24}</strong>
-                <span className="flight-status">{t(`flightStatus.${flight.status}`)}</span>
+                <span className="flight-status">
+                  {FLIGHT_STATUS_ICONS[flight.status]} {t(`flightStatus.${flight.status}`)}
+                </span>
               </div>
               <div>
                 {airport && <span className="badge badge-airport">{airport.icao4}</span>}

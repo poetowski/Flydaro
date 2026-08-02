@@ -4,6 +4,7 @@ import { listMyRentals } from "../api/rentals";
 import { getWallet } from "../api/wallet";
 import { useAuth } from "../auth/AuthContext";
 import { useLanguage } from "../i18n";
+import { PAGE_ICONS } from "../lib/pageIcons";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 
 export function AppLayout() {
@@ -33,17 +34,29 @@ export function AppLayout() {
         <span className="brand">Flydaro</span>
         <nav>
           <NavLink to="/" end>
-            {t("nav.dashboard")}
+            {PAGE_ICONS["/"]} {t("nav.dashboard")}
           </NavLink>
-          <NavLink to="/wallet-ledger">{t("nav.walletLedger")}</NavLink>
-          <NavLink to="/flights">{t("nav.flightBoard")}</NavLink>
-          <NavLink to="/rentals">{t("nav.rentalHistory")}</NavLink>
-          <NavLink to="/licenses">{t("nav.licenses")}</NavLink>
-          <NavLink to="/the-crew">{t("nav.crew")}</NavLink>
+          <NavLink to="/wallet-ledger">
+            {PAGE_ICONS["/wallet-ledger"]} {t("nav.walletLedger")}
+          </NavLink>
+          <NavLink to="/flights">
+            {PAGE_ICONS["/flights"]} {t("nav.flightBoard")}
+          </NavLink>
+          <NavLink to="/rentals">
+            {PAGE_ICONS["/rentals"]} {t("nav.rentalHistory")}
+          </NavLink>
+          <NavLink to="/licenses">
+            {PAGE_ICONS["/licenses"]} {t("nav.licenses")}
+          </NavLink>
+          <NavLink to="/the-crew">
+            {PAGE_ICONS["/the-crew"]} {t("nav.crew")}
+          </NavLink>
           <NavLink to="/board-of-fame" className="nav-right-group">
-            {t("nav.boardOfFame")}
+            {PAGE_ICONS["/board-of-fame"]} {t("nav.boardOfFame")}
           </NavLink>
-          <NavLink to="/our-story">{t("nav.ourStory")}</NavLink>
+          <NavLink to="/our-story">
+            {PAGE_ICONS["/our-story"]} {t("nav.ourStory")}
+          </NavLink>
         </nav>
         <div className="header-right">
           {rewardsReadyCount > 0 && (

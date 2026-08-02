@@ -68,6 +68,7 @@ export const en = {
     nextGoalFamily: "Unlock {{name}} -- {{balance}} / {{cost}} credits",
     nextGoalAllUnlocked: "You've unlocked everything -- nice work!",
     achievementsHeading: "Achievements",
+    achievementsCount: "({{earned}}/{{total}})",
     achievementUnlockedToast: "Achievement unlocked: {{title}}",
   },
   achievements: {

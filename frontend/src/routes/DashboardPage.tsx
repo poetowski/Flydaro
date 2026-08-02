@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listAircraftFamilies } from "../api/aircraftFamilies";
 import { listAirports } from "../api/airports";
@@ -14,8 +14,12 @@ import { translateApiError } from "../i18n/translateApiError";
 import { ACHIEVEMENTS, type AchievementData } from "../lib/achievements";
 import { useReasonLabel } from "../lib/ledgerLabels";
 import { familyBadgeLabel } from "../lib/familyLabel";
+import { PAGE_ICONS } from "../lib/pageIcons";
 import { getSeenAchievements, markSeen } from "../lib/seenAchievements";
+import { RENTAL_STATUS_ICONS } from "../lib/statusIcons";
 import { useToast } from "../lib/ToastContext";
+
+const ACHIEVEMENT_POP_DURATION_MS = 500;
 
 const ACTIVE_STATUSES = new Set(["FLYING", "IN_PROGRESS", "RESOLVING"]);
 const RECENT_ACTIVITY_COUNT = 5;
@@ -111,6 +115,7 @@ export function DashboardPage() {
   };
   const earnedIds = ACHIEVEMENTS.filter((a) => a.computeEarned(achievementData)).map((a) => a.id);
   const earnedIdsKey = earnedIds.join(",");
+  const [poppingIds, setPoppingIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (earnedIds.length === 0) return;
@@ -121,30 +126,33 @@ export function DashboardPage() {
       showToast(t("dashboard.achievementUnlockedToast", { title: t(`achievements.${id}.title`) }));
     });
     markSeen(newlyEarned);
+    setPoppingIds(new Set(newlyEarned));
+    const timeoutId = setTimeout(() => setPoppingIds(new Set()), ACHIEVEMENT_POP_DURATION_MS);
+    return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [earnedIdsKey]);
 
   return (
     <div className="page">
-      <h1>{t("dashboard.title")}</h1>
-      <p className="muted">
-        {currentUser ? t("dashboard.welcomeBackNamed", { name: currentUser.display_name }) : t("dashboard.welcomeBack")}
-        {memberSince ? t("dashboard.memberSince", { date: memberSince }) : ""}
-        {myRank
-          ? t("dashboard.rankedSuffix", {
-              rank: myRank.rank,
-              total: myRank.total_players,
-              bracket: myRank.credit_bracket,
-            })
-          : ""}
-      </p>
-
-      <section className="card">
-        <h2>{t("dashboard.walletHeading")}</h2>
+      <h1>
+        {PAGE_ICONS["/"]} {t("dashboard.title")}
+      </h1>
+      <div className="dashboard-hero">
+        <p className="muted">
+          {currentUser ? t("dashboard.welcomeBackNamed", { name: currentUser.display_name }) : t("dashboard.welcomeBack")}
+          {memberSince ? t("dashboard.memberSince", { date: memberSince }) : ""}
+          {myRank
+            ? t("dashboard.rankedSuffix", {
+                rank: myRank.rank,
+                total: myRank.total_players,
+                bracket: myRank.credit_bracket,
+              })
+            : ""}
+        </p>
         <p className="big-number">
           {wallet ? t("common.creditsAmount", { amount: wallet.balance_credits }) : t("dashboard.walletLoading")}
         </p>
-      </section>
+      </div>
 
       <section className="card">
         <h2>{t("dashboard.creditsOverTimeHeading")}</h2>
@@ -249,14 +257,17 @@ export function DashboardPage() {
       </section>
 
       <section className="card">
-        <h2>{t("dashboard.achievementsHeading")}</h2>
+        <h2>
+          {t("dashboard.achievementsHeading")}{" "}
+          {t("dashboard.achievementsCount", { earned: earnedIds.length, total: ACHIEVEMENTS.length })}
+        </h2>
         <div className="achievement-grid">
           {ACHIEVEMENTS.map((achievement) => {
             const earned = earnedIds.includes(achievement.id);
             return (
               <div
                 key={achievement.id}
-                className={`achievement-badge ${earned ? "achievement-badge-earned" : "achievement-badge-locked"}`}
+                className={`achievement-badge ${earned ? "achievement-badge-earned" : "achievement-badge-locked"} ${poppingIds.has(achievement.id) ? "achievement-badge-pop" : ""}`}
                 title={t(`achievements.${achievement.id}.description`)}
               >
                 <span className="achievement-badge-icon">{achievement.icon}</span>
@@ -296,7 +307,7 @@ export function DashboardPage() {
                 <div>
                   <strong>{rental.display_code}</strong>
                   <span className={`rental-status rental-status-${rental.status.toLowerCase()}`}>
-                    {t(`rentalStatusBadge.${rental.status}`)}
+                    {RENTAL_STATUS_ICONS[rental.status]} {t(`rentalStatusBadge.${rental.status}`)}
                   </span>
                 </div>
                 <div>

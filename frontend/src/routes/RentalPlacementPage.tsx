@@ -9,6 +9,7 @@ import { Modal } from "../components/Modal";
 import { useLanguage } from "../i18n";
 import { translateApiError } from "../i18n/translateApiError";
 import { itemLabel } from "../lib/itemLabels";
+import { ITEM_ICONS } from "../lib/itemIcons";
 import { useToast } from "../lib/ToastContext";
 
 const RENTAL_FEE_MARKS = [100, 250, 500, 1000];
@@ -123,7 +124,10 @@ export function RentalPlacementPage() {
                   }}
                 />
                 <span>
-                  <strong>{label.name}</strong> ({t(`itemCategory.${item.category}`)},{" "}
+                  <strong>
+                    {ITEM_ICONS[item.code]} {label.name}
+                  </strong>{" "}
+                  ({t(`itemCategory.${item.category}`)},{" "}
                   {item.settlement_multiplier}x) --{" "}
                   {item.base_cost_credits > 0
                     ? t("rentalPlacement.minFee", { amount: item.base_cost_credits })
@@ -162,10 +166,12 @@ export function RentalPlacementPage() {
           <p>
             {t("rentalPlacement.confirmBody", {
               callsign: flight.callsign ?? flight.icao24,
-              item: itemLabel(selectedItem.code, language, {
-                name: selectedItem.name,
-                flavorText: selectedItem.flavor_text,
-              }).name,
+              item: `${ITEM_ICONS[selectedItem.code]} ${
+                itemLabel(selectedItem.code, language, {
+                  name: selectedItem.name,
+                  flavorText: selectedItem.flavor_text,
+                }).name
+              }`,
               amount: rentalFee,
             })}
           </p>
